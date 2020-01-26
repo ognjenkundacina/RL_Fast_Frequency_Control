@@ -56,7 +56,7 @@ class DeepQLearningAgent:
     def __init__(self, environment):
         self.environment = environment
         self.epsilon = 0.1
-        self.batch_size = 50
+        self.batch_size = 32
         self.gamma = 1.0
         self.target_update = 5
         self.memory = ReplayMemory(1000000)
@@ -83,9 +83,9 @@ class DeepQLearningAgent:
                 # found, so we pick action with the larger expected reward.
                 action_index = self.policy_net(state).max(1)[1].view(1, 1)
                 self.policy_net.train()
-                return torch.tensor([[self.actions[action_index]]])
+                return self.actions[action_index]
         else:
-            return torch.tensor([[self.actions[random.randint(0, len(self.actions)-1)]]], dtype=torch.float)     
+            return self.actions[random.randint(0, len(self.actions)-1)]     
 
     def train(self, n_episodes):
         total_episode_rewards = []
@@ -99,6 +99,7 @@ class DeepQLearningAgent:
 
             #state initialization... look at vvo project if necessary
             initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
+            print('initial_disturbance', initial_disturbance)
             state = self.environment.reset(initial_disturbance)
 
             state = torch.tensor([state], dtype=torch.float)
@@ -120,7 +121,7 @@ class DeepQLearningAgent:
                 state = next_state
                 self.optimize_model()
 
-            if (i_episode % 500 == 0):
+            if (i_episode % 1 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
 
             total_episode_rewards.append(total_episode_reward)
