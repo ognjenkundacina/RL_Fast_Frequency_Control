@@ -78,10 +78,17 @@ class ScipyModel():
         #test
         if (i*self.Td != 0.24):
             print('WARNING in environment_discrete.py: i*self.Td != 0.24')
+
+        #todo check if this is ok when more resources are added
+        state = []
+        state += self.f[:,i].tolist()
+        state += self.rf[:,i].tolist()
+
+        return state
             
     #agent timestep count start from zero, but here, during the reset_model, 
     #the amount of n_agent_timestep_steps has been done
-    def get_next_state(self, agent_timestep, action):
+    def get_next_state(self, agent_timestep, action, collectPlotData):
         current_step = self.n_agent_timestep_steps * (agent_timestep + 1)
         for i in range(current_step, current_step + self.n_agent_timestep_steps):
             self.x[:,i+1] = np.dot(self.Ad, self.x[:,i]) + np.dot(self.Bd, self.u[:,i])
@@ -92,11 +99,22 @@ class ScipyModel():
             
             self.u[:,i+1] = self.u[:,i] + action
 
-        #todo check if this is ok when more resources are added
+        # todo check if this is ok when more resources are added
         next_state = []
         next_state += self.f[:,i].tolist()
         next_state += self.rf[:,i].tolist()
-        return next_state
+
+        # todo bice problema kada budemo imali vise resursa.
+        # najbolje tada da saljemo listu listi frekvencija, pa da je u okviru test metode raspakujemo
+        # iteriraj po numpy redovima i svaki red konvertuj u listu, pa salji listu listi 
+        if (collectPlotData and i == self.nSteps - 1):
+            freqs = self.f.tolist()[0]
+            rocofs = self.rf.tolist()[0]
+        else:
+            freqs = []
+            rocofs = []
+
+        return next_state, freqs, rocofs
 
 
 class EnvironmentDiscrete(gym.Env):
@@ -124,32 +142,34 @@ class EnvironmentDiscrete(gym.Env):
         self.regression_model = pickle.load(open('regression.sav', 'rb'))
         self.scipy_model = ScipyModel()
 
-        self.low_freq_limit = 49.9
-        self.high_freq_limit = 50.1
+        self.low_freq_limit = 49.5
+        self.high_freq_limit = 50.5
 
-    def update_state(self, action):
+    def update_state(self, action, collectPlotData):
         #features = np.array([[self.disturbance, self.freq, self.rocof]])
         #next_state = self.regression_model.predict(features)[0] #list
 
-        next_state = self.scipy_model.get_next_state(self.timestep, action)
+        next_state, freqs, rocofs = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
 
         self.state = tuple(next_state)
         self.freq, self.rocof = self.state
 
-        return self.state
+        return self.state, freqs, rocofs
 
-    def step(self, action):
+    def step(self, action, collectPlotData):
         done = self.timestep == N_ACTIONS_IN_SEQUENCE
         if done:
             next_state = self.state #will be set to None in the training loop
             reward = 0.0
+            freqs = []
+            rocofs = []
         else:
             self.disturbance = self.disturbance + action
-            next_state = self.update_state(action)
+            next_state, freqs, rocofs = self.update_state(action, collectPlotData)
             reward = self.calculate_reward(action)
             self.timestep += 1
 
-        return next_state, reward, done
+        return next_state, reward, done, freqs, rocofs
 
 
     def calculate_reward(self, action):
@@ -166,9 +186,9 @@ class EnvironmentDiscrete(gym.Env):
     def reset(self, initial_disturbance):
         self.freq = 50
         self.rocof = 0
-        self.state = (self.freq, self.rocof)
         self.disturbance = initial_disturbance
-        self.scipy_model.reset_model(initial_disturbance)
+        state = self.scipy_model.reset_model(initial_disturbance)
+        self.state = tuple(state)
         self.timestep = 0
 
         return self.state

@@ -55,7 +55,7 @@ class DeepQLearningAgent:
 
     def __init__(self, environment):
         self.environment = environment
-        self.epsilon = 0.1
+        self.epsilon = 0.2
         self.batch_size = 32
         self.gamma = 1.0
         self.target_update = 5
@@ -89,27 +89,29 @@ class DeepQLearningAgent:
 
     def train(self, n_episodes):
         total_episode_rewards = []
+        collectPlotData = False
         for i_episode in range(n_episodes):
-            if (i_episode % 500 == 0):
+            if (i_episode % 1 == 0):
                 print("=========Episode: ", i_episode)
-            self.epsilon = 0.5
-            if (i_episode == int(0.02 * n_episodes)):
-                self.epsilon = 0.1
+            #if (i_episode == int(0.02 * n_episodes)):
+                #self.epsilon = 0.1
             done = False
 
             #state initialization... look at vvo project if necessary
             initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
-            print('initial_disturbance', initial_disturbance)
+            #print('initial_disturbance', initial_disturbance)
             state = self.environment.reset(initial_disturbance)
 
             state = torch.tensor([state], dtype=torch.float)
             total_episode_reward = 0
 
             while not done:
+                #print("state", state)
                 action = self.get_action(state, epsilon = self.epsilon)
+                #print("action", action)
                 if (abs(action) > self.environment.high_set_point):
                     print('Warning: deep_q_learning.py: invalid action value: ', action)
-                next_state, reward, done = self.environment.step(action)
+                next_state, reward, done, _, _ = self.environment.step(action, collectPlotData)
                 total_episode_reward += reward
                 reward = torch.tensor([reward], dtype=torch.float)
                 action = torch.tensor([action], dtype=torch.float)
@@ -121,7 +123,7 @@ class DeepQLearningAgent:
                 state = next_state
                 self.optimize_model()
 
-            if (i_episode % 1 == 0):
+            if (i_episode % 500 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
 
             total_episode_rewards.append(total_episode_reward)
@@ -148,31 +150,53 @@ class DeepQLearningAgent:
         total_episode_reward_list = [] 
         #self.policy_net.load_state_dict(torch.load("policy_net"))
         self.policy_net.eval()
+        collectPlotData = True
 
+        test_sample_id = 1
         for initial_disturbance in test_sample_list:
+
+            #todo: delete:
+            initial_disturbance = -0.1
+
             print('Initial disturbance:', initial_disturbance)
-            state = self.environment.reset(initial_disturbance)
+
+            freqs = []
+            rocofs = []
+            control_efforts = [0 for i in range(25)]
+            state  = self.environment.reset(initial_disturbance)
+
             state = torch.tensor([state], dtype=torch.float)
             done = False
             total_episode_reward = 0
 
+            i = 0
+            actions = [0.03, 0.0, 0.0, 0.03] #zadnja se nece gledati, samo da kod ne pukne
             while not done:
-                action = self.get_action(state, epsilon = 0.0)
+                #action = self.get_action(state, epsilon = 0.0)
+                action = actions[i]
+                i += 1
                 print('action',action)
-                next_state, reward, done = self.environment.step(action)
-                print('New disturbance:', self.environment.disturbance)
-                print('New freq:', self.environment.freq)
-                print('New rocof:', self.environment.rocof)
-                print('Reward:', reward)
-                print('**********************')
+                next_state, reward, done, temp_freqs, temp_rocofs = self.environment.step(action, collectPlotData)
+                if not done:
+                    #todo for more resources we should unpack the list of lists of freqs
+                    freqs = temp_freqs #we override the freqs by the last results
+                    rocofs = temp_rocofs
+                    control_efforts += [action for i in range(25)]
+                    #print(control_efforts)
+                    print('New disturbance:', self.environment.disturbance)
+                    print('New freq:', self.environment.freq)
+                    print('New rocof:', self.environment.rocof)
+                    print('Reward:', reward)
+                    print('**********************')
 
                 total_episode_reward += reward
                 state = torch.tensor([next_state], dtype=torch.float)
+            plot_results(test_sample_id, freqs, rocofs, control_efforts)
+            test_sample_id += 1
             total_episode_reward_list.append(total_episode_reward)
         print ("Test set reward ", sum(total_episode_reward_list))
 
         
-
     def optimize_model(self):
         if len(self.memory) < self.batch_size:
             return
@@ -219,6 +243,34 @@ class DeepQLearningAgent:
 
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
+        #todo razmisli
+        #for param in self.policy_net.parameters():
+            #param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
+
+
+def plot_results(test_sample_id, freqs, rocofs, control_efforts):
+    time = [i for i in range(len(freqs))]
+
+    #print(control_efforts)
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    ax1.plot(time, freqs, label='Freq', color='g')
+    ax1.set_title('Frequency')
+    ax1.legend(loc='upper right')
+    #ax1.xlabel('s')  todo kako ovo uraditi za ax1?
+    #ax1.ylabel('Hz') 
+
+    ax2.plot(time, rocofs, label='Rocof', color='r')
+    ax2.set_title('Rocof')
+    ax2.legend(loc='upper right')
+    #ax2.xlabel('s') 
+
+    ax3.plot(time, control_efforts, label='Control effort', color='k')
+    ax3.set_title('Control effort')
+    ax3.legend(loc='upper right')
+    #ax3.xlabel('s') 
+    #ax3.ylabel('p.u.') 
+
+    #fig.savefig(str(test_sample_id) + '_resuts.png')
+    fig.show()
