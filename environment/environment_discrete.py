@@ -97,7 +97,7 @@ class ScipyModel():
                 self.rf[:,i] = (self.f[:,i] - self.f[:,i-1])/self.Td
             self.t[:,i] = i*self.Td 
             
-            self.u[:,i+1] = self.u[:,i] + action
+            self.u[:,i+1] = self.u[:,current_step - 1] + action
 
         # todo check if this is ok when more resources are added
         next_state = []
@@ -110,6 +110,7 @@ class ScipyModel():
         if (collectPlotData and i == self.nSteps - 1):
             freqs = self.f.tolist()[0]
             rocofs = self.rf.tolist()[0]
+            #print(self.u)
         else:
             freqs = []
             rocofs = []
@@ -142,8 +143,8 @@ class EnvironmentDiscrete(gym.Env):
         self.regression_model = pickle.load(open('regression.sav', 'rb'))
         self.scipy_model = ScipyModel()
 
-        self.low_freq_limit = 49.5
-        self.high_freq_limit = 50.5
+        self.low_freq_limit = 49.85
+        self.high_freq_limit = 50.15
 
     def update_state(self, action, collectPlotData):
         #features = np.array([[self.disturbance, self.freq, self.rocof]])
@@ -176,7 +177,7 @@ class EnvironmentDiscrete(gym.Env):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
             reward -= 10.0
-        reward = reward - abs(action) #control effort
+        reward = reward - 50 * abs(action) #control effort
 
         #todo = da li zelimo da samo jednom ii dvaput to citavom horizontu agent donosi akcije
         # da li zelimo i KAZNU ZA ROCOF - moze se desiti da on natjera frekvenciju da ne predje granice do zadnjeg timestempa, a da nagib bude ogroman

@@ -90,6 +90,8 @@ class DeepQLearningAgent:
     def train(self, n_episodes):
         total_episode_rewards = []
         collectPlotData = False
+        #todo delete
+        #self.policy_net.load_state_dict(torch.load("policy_net"))
         for i_episode in range(n_episodes):
             if (i_episode % 1 == 0):
                 print("=========Episode: ", i_episode)
@@ -148,16 +150,12 @@ class DeepQLearningAgent:
     def test(self, test_sample_list):
         print('***********TEST***********')
         total_episode_reward_list = [] 
-        #self.policy_net.load_state_dict(torch.load("policy_net"))
+        self.policy_net.load_state_dict(torch.load("policy_net"))
         self.policy_net.eval()
         collectPlotData = True
 
         test_sample_id = 1
         for initial_disturbance in test_sample_list:
-
-            #todo: delete:
-            initial_disturbance = -0.1
-
             print('Initial disturbance:', initial_disturbance)
 
             freqs = []
@@ -170,10 +168,10 @@ class DeepQLearningAgent:
             total_episode_reward = 0
 
             i = 0
-            actions = [0.03, 0.0, 0.0, 0.03] #zadnja se nece gledati, samo da kod ne pukne
+            #actions = [0.01, 0.02, 0.03, 0.0] #zadnja se nece gledati, samo da kod ne pukne
             while not done:
-                #action = self.get_action(state, epsilon = 0.0)
-                action = actions[i]
+                #action = actions[i]
+                action = self.get_action(state, epsilon = 0.0)
                 i += 1
                 print('action',action)
                 next_state, reward, done, temp_freqs, temp_rocofs = self.environment.step(action, collectPlotData)
@@ -252,8 +250,6 @@ class DeepQLearningAgent:
 def plot_results(test_sample_id, freqs, rocofs, control_efforts):
     time = [i for i in range(len(freqs))]
 
-    #print(control_efforts)
-
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
     ax1.plot(time, freqs, label='Freq', color='g')
     ax1.set_title('Frequency')
@@ -272,5 +268,5 @@ def plot_results(test_sample_id, freqs, rocofs, control_efforts):
     #ax3.xlabel('s') 
     #ax3.ylabel('p.u.') 
 
-    #fig.savefig(str(test_sample_id) + '_resuts.png')
-    fig.show()
+    fig.savefig(str(test_sample_id) + '_resuts.png')
+    plt.show()
