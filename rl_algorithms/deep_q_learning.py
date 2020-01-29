@@ -74,18 +74,34 @@ class DeepQLearningAgent:
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00001) #todo pokusaj nesto drugo
         #self.optimizer = optim.RMSprop(self.policy_net.parameters())
 
-    def get_action(self, state, epsilon):
+    def get_available_actions(self, disturbance):
+        available_actions = []
+        for i in range(len(self.actions)):
+            if self.actions[i] * disturbance <= 0:
+                available_actions.append(self.actions[i])
+        if (len(available_actions) == 0):
+            print('Warning in deep_q_learning.py -> get_action: No avaliable actions')
+        return available_actions
+
+    def get_action(self, state, epsilon, disturbance):
+        available_actions = self.get_available_actions(disturbance)
         if random.random() > epsilon:
             self.policy_net.eval()
             with torch.no_grad():
-                # t.max(1) will return largest column value of each row.
-                # second column on max result is index of where max element was
-                # found, so we pick action with the larger expected reward.
-                action_index = self.policy_net(state).max(1)[1].view(1, 1)
+                #self.policy_net(state).sort(-1, descending = True)[1] daje indekse akcija sortiranih po njihovim q vrijednostima
+                sorted_action_ids = self.policy_net(state).sort(-1, descending = True)[1].tolist()[0]
                 self.policy_net.train()
-                return self.actions[action_index]
+                action = None #todo remove later
+                for sorted_action_id in sorted_action_ids:
+                    if self.actions[sorted_action_id] in available_actions:
+                        action = self.actions[sorted_action_id]
+                        break
+                if action is None:
+                    print ('Error in deep_q_learning.py -> get_action: no action from sorted actions is selected')
+                return action
         else:
-            return self.actions[random.randint(0, len(self.actions)-1)]     
+            action = random.choice(available_actions)
+            return action   
 
     def train(self, n_episodes):
         total_episode_rewards = []
@@ -93,7 +109,7 @@ class DeepQLearningAgent:
         #todo delete
         #self.policy_net.load_state_dict(torch.load("policy_net"))
         for i_episode in range(n_episodes):
-            if (i_episode % 1 == 0):
+            if (i_episode % 500 == 0):
                 print("=========Episode: ", i_episode)
             #if (i_episode == int(0.02 * n_episodes)):
                 #self.epsilon = 0.1
@@ -109,7 +125,7 @@ class DeepQLearningAgent:
 
             while not done:
                 #print("state", state)
-                action = self.get_action(state, epsilon = self.epsilon)
+                action = self.get_action(state, self.epsilon, self.environment.disturbance)
                 #print("action", action)
                 if (abs(action) > self.environment.high_set_point):
                     print('Warning: deep_q_learning.py: invalid action value: ', action)
@@ -171,7 +187,7 @@ class DeepQLearningAgent:
             #actions = [0.01, 0.02, 0.03, 0.0] #zadnja se nece gledati, samo da kod ne pukne
             while not done:
                 #action = actions[i]
-                action = self.get_action(state, epsilon = 0.0)
+                action = self.get_action(state, epsilon = 0.0, disturbance = self.environment.disturbance)
                 i += 1
                 print('action',action)
                 next_state, reward, done, temp_freqs, temp_rocofs = self.environment.step(action, collectPlotData)
