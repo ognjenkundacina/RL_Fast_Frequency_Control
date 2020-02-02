@@ -36,13 +36,13 @@ class ReplayMemory(object):
 
 
 class DQN(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, output_size, hidden = 50):
         super(DQN, self).__init__()
-        self.fc1 = nn.Linear(input_size, 50)
-        self.fc2 = nn.Linear(50, 50)
-        self.fc3 = nn.Linear(50, 50)
-        self.fc3_bn = nn.BatchNorm1d(50)
-        self.fc4 = nn.Linear(50, output_size)
+        self.fc1 = nn.Linear(input_size, hidden)
+        self.fc2 = nn.Linear(hidden, hidden)
+        self.fc3 = nn.Linear(hidden, hidden)
+        self.fc3_bn = nn.BatchNorm1d(hidden)
+        self.fc4 = nn.Linear(hidden, output_size)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -53,10 +53,10 @@ class DQN(nn.Module):
 
 class DeepQLearningAgent:
 
-    def __init__(self, environment):
+    def __init__(self, environment, hidden = 50):
         self.environment = environment
         self.epsilon = 0.2
-        self.batch_size = 32
+        self.batch_size = 64
         self.gamma = 1.0
         self.target_update = 5
         self.memory = ReplayMemory(1000000)
@@ -65,8 +65,8 @@ class DeepQLearningAgent:
         self.n_actions = environment.n_actions
         self.actions = environment.action_space.values
 
-        self.policy_net = DQN(self.state_space_dims, self.n_actions)
-        self.target_net = DQN(self.state_space_dims, self.n_actions)
+        self.policy_net = DQN(self.state_space_dims, self.n_actions, hidden = hidden)
+        self.target_net = DQN(self.state_space_dims, self.n_actions, hidden = hidden)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
         self.policy_net.train() #train mode (train vs eval mode)
@@ -147,7 +147,7 @@ class DeepQLearningAgent:
             total_episode_rewards.append(total_episode_reward)
             
             if (i_episode % 5000 == 0):
-                time.sleep(30)
+                #time.sleep(30)
                 torch.save(self.policy_net.state_dict(), "policy_net")
 
             if i_episode % self.target_update == 0:
@@ -160,7 +160,7 @@ class DeepQLearningAgent:
         plt.xlabel('Episode number') 
         plt.ylabel('Total episode reward') 
         plt.savefig("total_episode_rewards.png")
-        plt.show()
+        #plt.show()
 
 
     def test(self, test_sample_list):
@@ -285,4 +285,4 @@ def plot_results(test_sample_id, freqs, rocofs, control_efforts):
     #ax3.ylabel('p.u.') 
 
     fig.savefig(str(test_sample_id) + '_resuts.png')
-    plt.show()
+    #plt.show()

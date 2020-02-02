@@ -177,7 +177,7 @@ class EnvironmentDiscrete(gym.Env):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
             reward -= 10.0
-        reward = reward - 50 * abs(action) #control effort
+        reward = reward - 10 * abs(action) #control effort
 
         #todo = da li zelimo da samo jednom ii dvaput to citavom horizontu agent donosi akcije
         # da li zelimo i KAZNU ZA ROCOF - moze se desiti da on natjera frekvenciju da ne predje granice do zadnjeg timestempa, a da nagib bude ogroman

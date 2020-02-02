@@ -26,14 +26,14 @@ def main():
 
     agent = DeepQLearningAgent(environment_discrete)
 
-    n_episodes = 30000
+    n_episodes = 50000
     print('agent training started')
     t1 = time.time()
     agent.train(n_episodes)
     t2 = time.time()
     print ('agent training finished in', t2-t1)
 
-    test_disturbance_list = [-0.1]
+    test_disturbance_list = [-0.095]
     agent.test(test_disturbance_list)
 
 if __name__ == '__main__':
