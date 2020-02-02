@@ -84,24 +84,27 @@ class DeepQLearningAgent:
         return available_actions
 
     def get_action(self, state, epsilon, disturbance):
-        available_actions = self.get_available_actions(disturbance)
+        #currently all action are available
+        #available_actions = self.get_available_actions(disturbance)
         if random.random() > epsilon:
             self.policy_net.eval()
             with torch.no_grad():
-                #self.policy_net(state).sort(-1, descending = True)[1] daje indekse akcija sortiranih po njihovim q vrijednostima
-                sorted_action_ids = self.policy_net(state).sort(-1, descending = True)[1].tolist()[0]
+                #sorted_action_ids = self.policy_net(state).sort(-1, descending = True)[1].tolist()[0]
+                #action = None #todo remove later
+                #for sorted_action_id in sorted_action_ids:
+                    #if self.actions[sorted_action_id] in available_actions:
+                        #action = self.actions[sorted_action_id]
+                        #break
+                #if action is None:
+                    #print ('Error in deep_q_learning.py -> get_action: no action from sorted actions is selected')
+                #return action
+                action_index = self.policy_net(state).max(1)[1].view(1, 1)
                 self.policy_net.train()
-                action = None #todo remove later
-                for sorted_action_id in sorted_action_ids:
-                    if self.actions[sorted_action_id] in available_actions:
-                        action = self.actions[sorted_action_id]
-                        break
-                if action is None:
-                    print ('Error in deep_q_learning.py -> get_action: no action from sorted actions is selected')
-                return action
+                return self.actions[action_index]
         else:
-            action = random.choice(available_actions)
-            return action   
+            #action = random.choice(available_actions)
+            #return action   
+            return self.actions[random.randint(0, len(self.actions)-1)] 
 
     def train(self, n_episodes):
         total_episode_rewards = []
@@ -160,7 +163,7 @@ class DeepQLearningAgent:
         plt.xlabel('Episode number') 
         plt.ylabel('Total episode reward') 
         plt.savefig("total_episode_rewards.png")
-        #plt.show()
+        plt.show()
 
 
     def test(self, test_sample_list):
@@ -285,4 +288,4 @@ def plot_results(test_sample_id, freqs, rocofs, control_efforts):
     #ax3.ylabel('p.u.') 
 
     fig.savefig(str(test_sample_id) + '_resuts.png')
-    #plt.show()
+    plt.show()

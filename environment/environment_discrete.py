@@ -7,7 +7,7 @@ import pickle
 from gym.spaces import Tuple
 from gym.spaces.space import Space
 
-N_ACTIONS_IN_SEQUENCE = 3
+N_ACTIONS_IN_SEQUENCE = 6
 
 #referent directions of active powers:
 #negative disturbance - demand increase (frequency decrease)
@@ -38,7 +38,7 @@ class ScipyModel():
 
         # Define simulation parameters
 
-        self.nSteps = 100 # Total number of time steps
+        self.nSteps = 175 # Total number of time steps
         self.nDist = 5    # Disturbance time instant
         self.Td = 0.01     # Time discretization
 
@@ -86,7 +86,7 @@ class ScipyModel():
 
         return state
             
-    #agent timestep count start from zero, but here, during the reset_model, 
+    #agent timestep count starts from zero, but here, during the reset_model, 
     #the amount of n_agent_timestep_steps has been done
     def get_next_state(self, agent_timestep, action, collectPlotData):
         current_step = self.n_agent_timestep_steps * (agent_timestep + 1)
@@ -127,9 +127,10 @@ class EnvironmentDiscrete(gym.Env):
         self.rocof = 0
         self.state = (self.freq, self.rocof)
         self.disturbance = 0
+        self.action_sum = 0 #models setpoint change, that should be zero at the end
 
         self.min_disturbance = -0.1
-        self.max_disturbance = 0.1
+        self.max_disturbance = 0.0
 
         self.state_space_dims = 2 #f i rocof
         self.action_space_dims = 1 #delta P
@@ -140,11 +141,11 @@ class EnvironmentDiscrete(gym.Env):
         self.n_actions = self.action_space.size
 
         self.timestep = 0
-        self.regression_model = pickle.load(open('regression.sav', 'rb'))
+        #self.regression_model = pickle.load(open('regression.sav', 'rb'))
         self.scipy_model = ScipyModel()
 
         self.low_freq_limit = 49.85
-        self.high_freq_limit = 50.15
+        self.high_freq_limit = 50.0
 
     def update_state(self, action, collectPlotData):
         #features = np.array([[self.disturbance, self.freq, self.rocof]])
@@ -176,11 +177,14 @@ class EnvironmentDiscrete(gym.Env):
     def calculate_reward(self, action):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
-            reward -= 10.0
-        reward = reward - 10 * abs(action) #control effort
+            reward -= 100.0
+        reward = reward - 1 * abs(action) #control effort
 
-        #todo = da li zelimo da samo jednom ii dvaput to citavom horizontu agent donosi akcije
-        # da li zelimo i KAZNU ZA ROCOF - moze se desiti da on natjera frekvenciju da ne predje granice do zadnjeg timestempa, a da nagib bude ogroman
+        self.action_sum += action
+        #todo provjeri jos jednom je li ok ovaj predzanji trenutak
+        if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
+            reward -= 100 * abs(self.action_sum)
+
         return reward
 
     #TODO DISTURBANCE BI TREBALO IZ DATASETA DA SE CITA, A MOZDA I NESTO VISE, TIPA PODACI O TRENUTNOJ POTROSNJI?
@@ -188,6 +192,7 @@ class EnvironmentDiscrete(gym.Env):
         self.freq = 50
         self.rocof = 0
         self.disturbance = initial_disturbance
+        self.action_sum = 0
         state = self.scipy_model.reset_model(initial_disturbance)
         self.state = tuple(state)
         self.timestep = 0
