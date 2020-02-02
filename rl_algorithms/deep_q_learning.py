@@ -180,6 +180,8 @@ class DeepQLearningAgent:
             freqs = []
             rocofs = []
             control_efforts = [0 for i in range(25)]
+            action_sums = [0 for i in range(25)]
+            action_sum = 0
             state  = self.environment.reset(initial_disturbance)
 
             state = torch.tensor([state], dtype=torch.float)
@@ -191,6 +193,7 @@ class DeepQLearningAgent:
             while not done:
                 #action = actions[i]
                 action = self.get_action(state, epsilon = 0.0, disturbance = self.environment.disturbance)
+                action_sum += action
                 i += 1
                 print('action',action)
                 next_state, reward, done, temp_freqs, temp_rocofs = self.environment.step(action, collectPlotData)
@@ -199,6 +202,7 @@ class DeepQLearningAgent:
                     freqs = temp_freqs #we override the freqs by the last results
                     rocofs = temp_rocofs
                     control_efforts += [action for i in range(25)]
+                    action_sums += [action_sum for i in range(25)]
                     #print(control_efforts)
                     print('New disturbance:', self.environment.disturbance)
                     print('New freq:', self.environment.freq)
@@ -208,7 +212,7 @@ class DeepQLearningAgent:
 
                 total_episode_reward += reward
                 state = torch.tensor([next_state], dtype=torch.float)
-            plot_results(test_sample_id, freqs, rocofs, control_efforts)
+            plot_results(test_sample_id, freqs, rocofs, control_efforts, action_sums)
             test_sample_id += 1
             total_episode_reward_list.append(total_episode_reward)
         print ("Test set reward ", sum(total_episode_reward_list))
@@ -266,26 +270,30 @@ class DeepQLearningAgent:
         self.optimizer.step()
 
 
-def plot_results(test_sample_id, freqs, rocofs, control_efforts):
+def plot_results(test_sample_id, freqs, rocofs, control_efforts, action_sums):
     time = [i for i in range(len(freqs))]
 
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True)
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, sharex=True)
     ax1.plot(time, freqs, label='Freq', color='g')
     ax1.set_title('Frequency')
-    ax1.legend(loc='upper right')
+    #ax1.legend(loc='upper right')
     #ax1.xlabel('s')  todo kako ovo uraditi za ax1?
     #ax1.ylabel('Hz') 
 
     ax2.plot(time, rocofs, label='Rocof', color='r')
     ax2.set_title('Rocof')
-    ax2.legend(loc='upper right')
+    #ax2.legend(loc='upper right')
     #ax2.xlabel('s') 
 
     ax3.plot(time, control_efforts, label='Control effort', color='k')
     ax3.set_title('Control effort')
-    ax3.legend(loc='upper right')
+    #ax3.legend(loc='upper right')
     #ax3.xlabel('s') 
     #ax3.ylabel('p.u.') 
+    
+    ax4.plot(time, action_sums, label='Action sums', color='b')
+    ax4.set_title('Action sums')
+    #ax4.legend(loc='upper right')
 
     fig.savefig(str(test_sample_id) + '_resuts.png')
     plt.show()

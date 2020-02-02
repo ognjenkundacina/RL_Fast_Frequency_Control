@@ -178,12 +178,12 @@ class EnvironmentDiscrete(gym.Env):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
             reward -= 100.0
-        reward = reward - 1 * abs(action) #control effort
+        reward = reward - 0.1 * abs(action) #control effort
 
         self.action_sum += action
         #todo provjeri jos jednom je li ok ovaj predzanji trenutak
         if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
-            reward -= 100 * abs(self.action_sum)
+            reward -= 10 * abs(self.action_sum)
 
         return reward
 
