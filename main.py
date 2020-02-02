@@ -2,7 +2,6 @@ import os
 from environment.environment_discrete import EnvironmentDiscrete
 import pandas as pd
 from rl_algorithms.deep_q_learning import DeepQLearningAgent
-import time
 
 def load_dataset():
     script_dir = os.path.dirname(__file__)
