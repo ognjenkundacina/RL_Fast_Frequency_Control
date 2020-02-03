@@ -79,9 +79,9 @@ class DeepQLearningAgent:
         available_actions = []
         less_than_zero = list(filter(lambda x: x <= 0, self.actions))
         if self.timestep < 3:
-            available_actions = list(filter(lambda x: x <= 0, self.actions))
-        elif self.timestep < 6:
             available_actions = list(filter(lambda x: x >= 0, self.actions))
+        elif self.timestep < 6:
+            available_actions = list(filter(lambda x: x <= 0, self.actions))
         else:
             available_actions = [0.0]
         if (len(available_actions) == 0):
