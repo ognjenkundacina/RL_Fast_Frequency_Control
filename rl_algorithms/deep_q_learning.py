@@ -60,6 +60,7 @@ class DeepQLearningAgent:
         self.gamma = 1.0
         self.target_update = 5
         self.memory = ReplayMemory(1000000)
+        self.timestep = 0
 
         self.state_space_dims = environment.state_space_dims
         self.n_actions = environment.n_actions
@@ -76,35 +77,39 @@ class DeepQLearningAgent:
 
     def get_available_actions(self, disturbance):
         available_actions = []
-        for i in range(len(self.actions)):
-            if self.actions[i] * disturbance <= 0:
-                available_actions.append(self.actions[i])
+        less_than_zero = list(filter(lambda x: x <= 0, self.actions))
+        if self.timestep < 3:
+            available_actions = list(filter(lambda x: x <= 0, self.actions))
+        elif self.timestep < 6:
+            available_actions = list(filter(lambda x: x >= 0, self.actions))
+        else:
+            available_actions = [0.0]
         if (len(available_actions) == 0):
             print('Warning in deep_q_learning.py -> get_action: No avaliable actions')
         return available_actions
 
     def get_action(self, state, epsilon, disturbance):
         #currently all action are available
-        #available_actions = self.get_available_actions(disturbance)
+        available_actions = self.get_available_actions(disturbance)
         if random.random() > epsilon:
             self.policy_net.eval()
             with torch.no_grad():
-                #sorted_action_ids = self.policy_net(state).sort(-1, descending = True)[1].tolist()[0]
-                #action = None #todo remove later
-                #for sorted_action_id in sorted_action_ids:
-                    #if self.actions[sorted_action_id] in available_actions:
-                        #action = self.actions[sorted_action_id]
-                        #break
-                #if action is None:
-                    #print ('Error in deep_q_learning.py -> get_action: no action from sorted actions is selected')
-                #return action
-                action_index = self.policy_net(state).max(1)[1].view(1, 1)
-                self.policy_net.train()
-                return self.actions[action_index]
+                sorted_action_ids = self.policy_net(state).sort(-1, descending = True)[1].tolist()[0]
+                action = None #todo remove later
+                for sorted_action_id in sorted_action_ids:
+                    if self.actions[sorted_action_id] in available_actions:
+                        action = self.actions[sorted_action_id]
+                        break
+                if action is None:
+                    print ('Error in deep_q_learning.py -> get_action: no action from sorted actions is selected')
+                return action
+                #action_index = self.policy_net(state).max(1)[1].view(1, 1)
+                #self.policy_net.train()
+                #return self.actions[action_index]
         else:
-            #action = random.choice(available_actions)
-            #return action   
-            return self.actions[random.randint(0, len(self.actions)-1)] 
+            action = random.choice(available_actions)
+            return action   
+            #return self.actions[random.randint(0, len(self.actions)-1)] 
 
     def train(self, n_episodes):
         total_episode_rewards = []
@@ -125,6 +130,7 @@ class DeepQLearningAgent:
 
             state = torch.tensor([state], dtype=torch.float)
             total_episode_reward = 0
+            self.timestep = 0
 
             while not done:
                 #print("state", state)
@@ -133,6 +139,7 @@ class DeepQLearningAgent:
                 if (abs(action) > self.environment.high_set_point):
                     print('Warning: deep_q_learning.py: invalid action value: ', action)
                 next_state, reward, done, _, _ = self.environment.step(action, collectPlotData)
+                self.timestep += 1
                 total_episode_reward += reward
                 reward = torch.tensor([reward], dtype=torch.float)
                 action = torch.tensor([action], dtype=torch.float)
@@ -150,7 +157,7 @@ class DeepQLearningAgent:
             total_episode_rewards.append(total_episode_reward)
             
             if (i_episode % 5000 == 0):
-                #time.sleep(30)
+                time.sleep(60)
                 torch.save(self.policy_net.state_dict(), "policy_net")
 
             if i_episode % self.target_update == 0:
@@ -188,15 +195,15 @@ class DeepQLearningAgent:
             done = False
             total_episode_reward = 0
 
-            i = 0
+            self.timestep = 0
             #actions = [0.01, 0.02, 0.03, 0.0] #zadnja se nece gledati, samo da kod ne pukne
             while not done:
                 #action = actions[i]
                 action = self.get_action(state, epsilon = 0.0, disturbance = self.environment.disturbance)
                 action_sum += action
-                i += 1
                 print('action',action)
                 next_state, reward, done, temp_freqs, temp_rocofs = self.environment.step(action, collectPlotData)
+                self.timestep += 1
                 if not done:
                     #todo for more resources we should unpack the list of lists of freqs
                     freqs = temp_freqs #we override the freqs by the last results
