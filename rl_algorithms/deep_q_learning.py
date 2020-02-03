@@ -157,7 +157,7 @@ class DeepQLearningAgent:
             total_episode_rewards.append(total_episode_reward)
             
             if (i_episode % 5000 == 0):
-                time.sleep(60)
+                #time.sleep(60)
                 torch.save(self.policy_net.state_dict(), "policy_net")
 
             if i_episode % self.target_update == 0:
