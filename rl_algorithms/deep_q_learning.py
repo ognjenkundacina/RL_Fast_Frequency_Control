@@ -10,9 +10,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torchvision.transforms as T
 
+from config import *
+
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
-
 
 class ReplayMemory(object):
 
@@ -74,16 +75,41 @@ class DeepQLearningAgent:
 
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=0.00001) #todo pokusaj nesto drugo
         #self.optimizer = optim.RMSprop(self.policy_net.parameters())
+        
+        self.is_nadir_nearly_met = False
 
     def get_available_actions(self, disturbance):
         available_actions = []
-        less_than_zero = list(filter(lambda x: x <= 0, self.actions))
         if self.timestep < 3:
             available_actions = list(filter(lambda x: x >= 0, self.actions))
         elif self.timestep < 6:
             available_actions = list(filter(lambda x: x <= 0, self.actions))
         else:
             available_actions = [0.0]
+        if (len(available_actions) == 0):
+            print('Warning in deep_q_learning.py -> get_action: No avaliable actions')
+        return available_actions
+        
+    def get_available_actions_flexible(self, disturbance):
+        available_actions = []
+        #print('first', self.is_nadir_nearly_met)
+        #print(self.timestep)
+        if self.timestep <= 1:
+            #ovu promjenljivu nismo stavljali u environment zbog multi agent scenarija
+            self.is_nadir_nearly_met = False #lakse ovdje staviti nego dva puta na pocetku train i test metode
+        elif not self.is_nadir_nearly_met and self.environment.rocof > -0.01:
+            self.is_nadir_nearly_met = True
+            
+        #print('second', self.is_nadir_nearly_met)
+        #print(self.environment.rocof)
+            
+        if self.timestep == N_ACTIONS_IN_SEQUENCE:
+            available_actions = [0.0]
+        elif not self.is_nadir_nearly_met:
+            available_actions = list(filter(lambda x: x >= 0, self.actions))
+        else:
+            available_actions = list(filter(lambda x: x <= 0, self.actions))
+        #print(available_actions)
         if (len(available_actions) == 0):
             print('Warning in deep_q_learning.py -> get_action: No avaliable actions')
         return available_actions
