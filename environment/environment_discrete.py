@@ -124,14 +124,15 @@ class EnvironmentDiscrete(gym.Env):
         
         self.freq = 50
         self.rocof = 0
-        self.state = (self.freq, self.rocof)
+        self.timestep = 0
+        self.state = (self.freq, self.rocof, self.timestep * 1.0 )
         self.disturbance = 0
         self.action_sum = 0 #models setpoint change, that should be zero at the end
 
         self.min_disturbance = -0.1
         self.max_disturbance = 0.0
 
-        self.state_space_dims = 2 #f i rocof
+        self.state_space_dims = 3 #f i rocof i timestep
         self.action_space_dims = 1 #delta P
 
         self.low_set_point = -0.1
@@ -139,7 +140,6 @@ class EnvironmentDiscrete(gym.Env):
         self.action_space = Incremental(self.low_set_point, self.high_set_point, 0.01)
         self.n_actions = self.action_space.size
 
-        self.timestep = 0
         #self.regression_model = pickle.load(open('regression.sav', 'rb'))
         self.scipy_model = ScipyModel()
 
@@ -152,8 +152,10 @@ class EnvironmentDiscrete(gym.Env):
 
         next_state, freqs, rocofs = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
 
-        self.state = tuple(next_state)
-        self.freq, self.rocof = self.state
+        self.state = next_state
+        self.state.append(self.timestep * 1.0)
+        self.state = tuple(self.state)
+        self.freq, self.rocof, _ = self.state
 
         return self.state, freqs, rocofs
 
@@ -192,8 +194,9 @@ class EnvironmentDiscrete(gym.Env):
         self.rocof = 0
         self.disturbance = initial_disturbance
         self.action_sum = 0
-        state = self.scipy_model.reset_model(initial_disturbance)
-        self.state = tuple(state)
         self.timestep = 0
+        self.state = self.scipy_model.reset_model(initial_disturbance)
+        self.state.append(self.timestep * 1.0)
+        self.state = tuple(self.state)
 
         return self.state
