@@ -1,7 +1,9 @@
 import os
 from environment.environment_discrete import EnvironmentDiscrete
+from environment.environment_continous import EnvironmentContinous
 import pandas as pd
 from rl_algorithms.deep_q_learning import DeepQLearningAgent
+from rl_algorithms.ddpg import DDPGAgent
 import time
 
 def load_dataset():
@@ -22,11 +24,13 @@ def main():
     #df = load_dataset()
     #df_train, df_test = split_dataset(df, 998)
 
-    environment_discrete = EnvironmentDiscrete()
+    #environment_discrete = EnvironmentDiscrete()
+    #agent = DeepQLearningAgent(environment_discrete)
 
-    agent = DeepQLearningAgent(environment_discrete)
+    environment_continous = EnvironmentContinous()
+    agent = DDPGAgent(environment_continous)
 
-    n_episodes = 50000
+    n_episodes = 5000
     print('agent training started')
     t1 = time.time()
     agent.train(n_episodes)

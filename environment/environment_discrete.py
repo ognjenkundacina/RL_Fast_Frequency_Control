@@ -183,8 +183,8 @@ class EnvironmentDiscrete(gym.Env):
 
         self.action_sum += action
         #todo provjeri jos jednom je li ok ovaj predzanji trenutak
-        if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
-            reward -= 100.0 * abs(self.action_sum)
+        #if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
+            #reward -= 100.0 * abs(self.action_sum)
 
         return reward
 
