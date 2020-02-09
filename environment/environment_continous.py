@@ -55,7 +55,7 @@ class ScipyModel():
 
         for i in range (self.n_agent_timestep_steps):
             self.x[:,i+1] = np.dot(self.Ad, self.x[:,i]) + np.dot(self.Bd, self.u[:,i])
-            self.f[:,i] = np.dot(self.Cd, self.x[:,i]) + np.dot(self.Dd, self.u[:,i]) + 50.0
+            self.f[:,i] = np.dot(self.Cd, self.x[:,i]) + np.dot(self.Dd, self.u[:,i])
             if i != 0:
                 self.rf[:,i] = (self.f[:,i] - self.f[:,i-1])/self.Td
             self.t[:,i] = i*self.Td 
@@ -77,7 +77,7 @@ class ScipyModel():
         current_step = self.n_agent_timestep_steps * (agent_timestep + 1)
         for i in range(current_step, current_step + self.n_agent_timestep_steps):
             self.x[:,i+1] = np.dot(self.Ad, self.x[:,i]) + np.dot(self.Bd, self.u[:,i])
-            self.f[:,i] = np.dot(self.Cd, self.x[:,i]) + np.dot(self.Dd, self.u[:,i]) + 50.0
+            self.f[:,i] = np.dot(self.Cd, self.x[:,i]) + np.dot(self.Dd, self.u[:,i])
             if i != 0:
                 self.rf[:,i] = (self.f[:,i] - self.f[:,i-1])/self.Td
             self.t[:,i] = i*self.Td 
@@ -108,7 +108,7 @@ class EnvironmentContinous(gym.Env):
     def __init__(self):
         super(EnvironmentContinous, self).__init__()
         
-        self.freq = 50
+        self.freq = 0
         self.rocof = 0
         self.timestep = 0
         ####self.state = (self.freq, self.rocof, self.timestep * 1.0 )
@@ -129,8 +129,8 @@ class EnvironmentContinous(gym.Env):
 
         self.scipy_model = ScipyModel()
 
-        self.low_freq_limit = 49.85
-        self.high_freq_limit = 50.0
+        self.low_freq_limit = - 0.15
+        self.high_freq_limit = 0.0
 
     def update_state(self, action, collectPlotData):
         #features = np.array([[self.disturbance, self.freq, self.rocof]])
@@ -168,7 +168,7 @@ class EnvironmentContinous(gym.Env):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
             reward -= 1.0
-        #reward = reward - 1.0 * abs(action) #control effort
+        reward = reward - 1.0 * abs(action) #control effort
 
         self.action_sum += action
         #todo provjeri jos jednom je li ok ovaj predzanji trenutak
@@ -179,7 +179,7 @@ class EnvironmentContinous(gym.Env):
 
     #TODO DISTURBANCE BI TREBALO IZ DATASETA DA SE CITA, A MOZDA I NESTO VISE, TIPA PODACI O TRENUTNOJ POTROSNJI?
     def reset(self, initial_disturbance):
-        self.freq = 50
+        self.freq = 0
         self.rocof = 0
         self.disturbance = initial_disturbance
         self.action_sum = 0

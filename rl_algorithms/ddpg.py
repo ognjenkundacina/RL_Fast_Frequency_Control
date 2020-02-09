@@ -129,7 +129,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
 class DDPGAgent:
-    def __init__(self, environment, hidden_size=50, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=1000000):
+    def __init__(self, environment, hidden_size=100, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=1000000):
         self.environment = environment
         self.num_states = environment.state_space_dims
         self.num_actions = environment.action_space.shape[0]
@@ -218,9 +218,9 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
 
-            #initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
+            initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
-            initial_disturbance = -0.095
+            #initial_disturbance = -0.095
             state = self.environment.reset(initial_disturbance)
 
             self.noise.reset()
@@ -250,7 +250,7 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
             
-            #if (i_episode % 5000 == 4999):
+            if (i_episode % 10000 == 4999):
                 #time.sleep(60)
                 torch.save(self.actor.state_dict(), "model_actor")
                 torch.save(self.critic.state_dict(), "model_critic")                
@@ -319,6 +319,7 @@ def plot_results(test_sample_id, freqs, rocofs, control_efforts, action_sums):
     time = [i for i in range(len(control_efforts))]
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, sharex=True)
+    freqs = [f + 50.0 for f in freqs]
     ax1.plot(time, freqs, label='Freq', color='g')
     ax1.set_title('Frequency')
     #ax1.legend(loc='upper right')
