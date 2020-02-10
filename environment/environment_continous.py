@@ -23,7 +23,7 @@ class ScipyModel():
 
         # Define simulation parameters
 
-        self.nSteps = 100 # Total number of time steps
+        self.nSteps = 175 # Total number of time steps
         self.nDist = 5    # Disturbance time instant
         self.Td = 0.01     # Time discretization
 
@@ -168,12 +168,12 @@ class EnvironmentContinous(gym.Env):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
             reward -= 1.0
-        reward = reward - 1.0 * abs(action) #control effort
+        #reward = reward - 1.0 * abs(action) #control effort
 
         self.action_sum += action
         #todo provjeri jos jednom je li ok ovaj predzanji trenutak
-        #if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
-            #reward -= 100.0 * abs(self.action_sum)
+        if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
+            reward -= 2.0 * abs(self.action_sum)
 
         return reward
 

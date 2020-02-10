@@ -210,8 +210,8 @@ class DDPGAgent:
 
     
     def train(self, n_episodes):
-        #self.actor.load_state_dict(torch.load("model_actor"))
-        #self.critic.load_state_dict(torch.load("model_critic"))
+        self.actor.load_state_dict(torch.load("model_actor"))
+        self.critic.load_state_dict(torch.load("model_critic"))
         total_episode_rewards = []
         collectPlotData = False
         for i_episode in range(n_episodes):
