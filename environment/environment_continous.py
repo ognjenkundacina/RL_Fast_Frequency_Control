@@ -7,6 +7,7 @@ import pickle
 from gym.spaces import Tuple
 from gym.spaces.space import Space
 from config import *
+import math
 
 #referent directions of active powers:
 #negative disturbance - demand increase (frequency decrease)
@@ -111,16 +112,16 @@ class EnvironmentContinous(gym.Env):
         self.freq = 0
         self.rocof = 0
         self.timestep = 0
-        ####self.state = (self.freq, self.rocof, self.timestep * 1.0 )
-        self.state = (self.freq, self.rocof)
+        self.state = (self.freq, self.rocof, self.timestep / 6.0 )
+        ####self.state = (self.freq, self.rocof)
         self.disturbance = 0
         self.action_sum = 0 #models setpoint change, that should be zero at the end
 
         self.min_disturbance = -0.1
         self.max_disturbance = 0.0
 
-        ####self.state_space_dims = 3 #f i rocof i timestep
-        self.state_space_dims = 2 #f i rocof i timestep
+        self.state_space_dims = 3 #f i rocof i timestep
+        ####self.state_space_dims = 2 #f i rocof i timestep
         self.action_space_dims = 1 #delta P
 
         self.low_set_point = -0.1
@@ -139,10 +140,11 @@ class EnvironmentContinous(gym.Env):
         next_state, freqs, rocofs = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
 
         self.state = next_state
-        ####self.state.append(self.timestep * 1.0)
+        self.timestep += 1
+        self.state.append(self.timestep / 6.0)
         self.state = tuple(self.state)
-        ####self.freq, self.rocof, _ = self.state
-        self.freq, self.rocof = self.state
+        self.freq, self.rocof, _ = self.state
+        ####self.freq, self.rocof = self.state
 
         return self.state, freqs, rocofs
 
@@ -159,7 +161,6 @@ class EnvironmentContinous(gym.Env):
         self.disturbance = self.disturbance + action
         next_state, freqs, rocofs = self.update_state(action, collectPlotData)
         reward = self.calculate_reward(action)
-        self.timestep += 1
 
         return next_state, reward, done, freqs, rocofs
 
@@ -167,13 +168,14 @@ class EnvironmentContinous(gym.Env):
     def calculate_reward(self, action):
         reward = 0
         if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
-            reward -= 1.0
-        #reward = reward - 1.0 * abs(action) #control effort
+            reward -= 0.5
+        reward = reward - 0.5 * abs(action) #control effort
 
         self.action_sum += action
-        #todo provjeri jos jednom je li ok ovaj predzanji trenutak
-        if self.timestep == N_ACTIONS_IN_SEQUENCE - 1:
-            reward -= 2.0 * abs(self.action_sum)
+        #self.square_root_sum_action_squared += action * action
+        #todo provjeri jos jednom je li ok ovaj predzanji trenutak... ideja je da ni korak kasnije frekvencija ne ode iz granica 
+        #if self.timestep == N_ACTIONS_IN_SEQUENCE:
+            #reward -= 3.0 * math.sqrt(self.square_root_sum_action_squared)
 
         return reward
 
@@ -183,9 +185,10 @@ class EnvironmentContinous(gym.Env):
         self.rocof = 0
         self.disturbance = initial_disturbance
         self.action_sum = 0
+        self.square_root_sum_action_squared = 0
         self.timestep = 0
         self.state = self.scipy_model.reset_model(initial_disturbance)
-        ####self.state.append(self.timestep * 1.0)
+        self.state.append(self.timestep / 6.0)
         self.state = tuple(self.state)
 
         return self.state

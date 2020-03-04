@@ -25,8 +25,8 @@ class Critic(nn.Module):
 
     def forward(self, state, action):
         x = torch.cat([state, action], 1)
-        x = torch.tanh(self.linear1(x))
-        x = torch.tanh(self.linear2_bn(self.linear2(x)))
+        x = torch.relu(self.linear1(x))
+        x = torch.relu(self.linear2_bn(self.linear2(x)))
         x = self.linear3(x) #returns q value, should not be limited by tanh
         return x
 
@@ -43,13 +43,13 @@ class Actor(nn.Module):
         self.linear3.bias.data.uniform_(-init_w, init_w)
 
     def forward(self, state):
-        x = torch.tanh(self.linear1(state))
-        x = torch.tanh(self.linear2_bn(self.linear2(x)))        
+        x = torch.relu(self.linear1(state))
+        x = torch.relu(self.linear2_bn(self.linear2(x)))        
         x = torch.tanh(self.linear3(x))
         return x
 
 class OUNoise(object):
-    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=0.05, min_sigma=0.05, decay_period=100):
+    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=0.01, min_sigma=0.01, decay_period=100):
         self.mu           = mu
         self.theta        = theta
         self.sigma        = max_sigma
@@ -129,7 +129,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
 class DDPGAgent:
-    def __init__(self, environment, hidden_size=100, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=1000000):
+    def __init__(self, environment, hidden_size=100, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
         self.environment = environment
         self.num_states = environment.state_space_dims
         self.num_actions = environment.action_space.shape[0]
@@ -210,8 +210,8 @@ class DDPGAgent:
 
     
     def train(self, n_episodes):
-        self.actor.load_state_dict(torch.load("model_actor"))
-        self.critic.load_state_dict(torch.load("model_critic"))
+        #self.actor.load_state_dict(torch.load("model_actor"))
+        #self.critic.load_state_dict(torch.load("model_critic"))
         total_episode_rewards = []
         collectPlotData = False
         for i_episode in range(n_episodes):
@@ -220,7 +220,6 @@ class DDPGAgent:
 
             initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
-            #initial_disturbance = -0.095
             state = self.environment.reset(initial_disturbance)
 
             self.noise.reset()
@@ -250,7 +249,7 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
             
-            if (i_episode % 10000 == 4999):
+            if (i_episode % 1000 == 999):
                 #time.sleep(60)
                 torch.save(self.actor.state_dict(), "model_actor")
                 torch.save(self.critic.state_dict(), "model_critic")                
@@ -263,7 +262,7 @@ class DDPGAgent:
         plt.xlabel('Episode number') 
         plt.ylabel('Total episode reward') 
         plt.savefig("total_episode_rewards.png")
-        plt.show()
+        #plt.show()
 
     def test(self, test_sample_list):
         print('***********TEST***********')
@@ -290,6 +289,7 @@ class DDPGAgent:
                 action = self.get_action(state)
                 #self.actor.eval()
                 action = action.item(0)
+
                 action_sum += action
                 print('action',action)
                 next_state, reward, done, temp_freqs, temp_rocofs = self.environment.step(action, collectPlotData)
