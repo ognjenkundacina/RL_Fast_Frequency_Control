@@ -8,18 +8,36 @@ from gym.spaces import Tuple
 from gym.spaces.space import Space
 from config import *
 import math
+import os
+from csv import reader
 
 #referent directions of active powers:
 #negative disturbance - demand increase (frequency decrease)
 #positive action - 'generation' increase
+
+def load_matrix_from_csv(file_name):
+    script_dir = os.path.dirname(__file__)
+    file_path = os.path.join(script_dir, './' + file_name)
+    with open(file_path, 'r') as read_obj:
+        # pass the file object to reader() to get the reader object
+        csv_reader = reader(read_obj)
+        # Pass reader object to list() to get a list of lists
+        list_of_rows = list(csv_reader)
+        new_list_of_rows = []
+        for row in list_of_rows:
+            new_row = []
+            for item in row:
+                new_row.append(float(item))
+            new_list_of_rows.append(new_row)
+        return new_list_of_rows
         
 class ScipyModel():
     def __init__(self):
         # Define the frequnecy response state-space
-        A = [[0,1],[-1.629351428850842,-1.911954183169527]]
-        B = [[0],[1]]
-        C = [3.745887382384376,7.491774764768751]
-        D = [0]
+        A = load_matrix_from_csv("A_matrix.csv") #85 x 85
+        B = load_matrix_from_csv("B_matrix.csv") #85 x 49
+        C = load_matrix_from_csv("C_matrix.csv") #10 x 85
+        D = load_matrix_from_csv("D_matrix.csv") #10 x 49
         sys = signal.StateSpace(A,B,C,D)
 
         # Define simulation parameters
@@ -40,18 +58,27 @@ class ScipyModel():
         self.Bd = np.array(sysd.B)
         self.Cd = np.array(sysd.C)
         self.Dd = np.array(sysd.D)
-        self.x = np.zeros((2,self.nSteps))
-        self.f = np.zeros((1,self.nSteps))
-        self.rf = np.zeros((1,self.nSteps))
-        self.u = np.zeros((1,self.nSteps)) #disturbance
+        self.x = np.zeros((85,self.nSteps))
+        self.f = np.zeros((10,self.nSteps))
+        self.rf = np.zeros((10,self.nSteps))
+        self.u = np.zeros((49,self.nSteps)) #disturbance
         self.t = np.zeros((1,self.nSteps))
 
-    def reset_model(self, initial_disturbance):
-        self.x = np.zeros((2,self.nSteps+2))
-        self.f = np.zeros((1,self.nSteps))
-        self.rf = np.zeros((1,self.nSteps))
-        self.u = np.zeros((1,self.nSteps+1))
-        self.u[:,self.nDist:self.nSteps] = initial_disturbance
+    def initialize_control_vector(self, initial_disturbance_dict):
+        for i in range(49):
+            if i<=19:
+                self.u[:,self.nDist:self.nSteps] = 0
+            else:
+                node_id = i - 9 #Comment1, buttom of the file
+                self.u[i ,self.nDist:self.nSteps+1] = initial_disturbance_dict[node_id]
+
+
+    def reset_model(self, initial_disturbance_dict):
+        self.x = np.zeros((85,self.nSteps+2))
+        self.f = np.zeros((10,self.nSteps))
+        self.rf = np.zeros((10,self.nSteps))
+        self.u = np.zeros((49,self.nSteps+1))
+        self.initialize_control_vector(initial_disturbance_dict)
         self.t = np.zeros((1,self.nSteps))
 
         for i in range (self.n_agent_timestep_steps):
@@ -65,7 +92,8 @@ class ScipyModel():
         if (i*self.Td != 0.24):
             print('WARNING in environment_discrete.py: i*self.Td != 0.24')
 
-        #todo check if this is ok when more resources are added
+        #size of self.f[:,i].tolist() is 10
+        #i is last step index in agents step (last step of the for loop)
         state = []
         state += self.f[:,i].tolist()
         state += self.rf[:,i].tolist()
@@ -83,25 +111,25 @@ class ScipyModel():
                 self.rf[:,i] = (self.f[:,i] - self.f[:,i-1])/self.Td
             self.t[:,i] = i*self.Td 
             
-            self.u[:,i+1] = self.u[:,current_step - 1] + action
+            self.u[0,i+1] = self.u[0,current_step - 1] + action[0] #Comment1, buttom of the file
+            self.u[1,i+1] = self.u[1,current_step - 1] + action[1]
+            self.u[2,i+1] = self.u[2,current_step - 1] + action[2]
 
-        # todo check if this is ok when more resources are added
-        next_state = []
-        next_state += self.f[:,i].tolist()
-        next_state += self.rf[:,i].tolist()
+        #size of self.f[:,i].tolist() is 10
+        #i is last step index in agents step (last step of the for loop)
+        next_state_freq = self.f[:,i].tolist()
+        next_state_rocof = self.rf[:,i].tolist()
 
-        # todo bice problema kada budemo imali vise resursa.
-        # najbolje tada da saljemo listu listi frekvencija, pa da je u okviru test metode raspakujemo
-        # iteriraj po numpy redovima i svaki red konvertuj u listu, pa salji listu listi 
         if (collectPlotData and i == self.nSteps - 1):
-            freqs = self.f.tolist()[0]
-            rocofs = self.rf.tolist()[0]
+            #10 lists of frequences
+            freqs_all_steps = self.f.tolist()
+            rocofs_all_steps = self.rf.tolist()
             #print(self.u)
         else:
-            freqs = []
-            rocofs = []
+            freqs_all_steps = []
+            rocofs_all_steps = []
 
-        return next_state, freqs, rocofs
+        return next_state_freq, next_state_rocof, freqs_all_steps, rocofs_all_steps
 
 
 class EnvironmentContinous(gym.Env):
@@ -112,41 +140,44 @@ class EnvironmentContinous(gym.Env):
         self.freq = 0
         self.rocof = 0
         self.timestep = 0
-        self.state = (self.freq, self.rocof, self.timestep / 6.0 )
+        self.state = (self.freq, self.rocof, self.timestep / float(N_ACTIONS_IN_SEQUENCE) )
         ####self.state = (self.freq, self.rocof)
-        self.disturbance = 0
-        self.action_sum = 0 #models setpoint change, that should be zero at the end
+        ##########self.disturbance = 0
 
-        self.min_disturbance = -0.1
-        self.max_disturbance = 0.0
+        self.min_disturbance = 0.0
+        self.max_disturbance = 2.0
 
-        self.state_space_dims = 3 #f i rocof i timestep
+        self.state_space_dims = 21 #f i rocof i timestep
         ####self.state_space_dims = 2 #f i rocof i timestep
-        self.action_space_dims = 1 #delta P
+        self.action_space_dims = 3 #delta P
+        self.action_sum = [0 for i in range(self.action_space_dims)] #models setpoint change, that should be zero at the end
 
-        self.low_set_point = -0.1
-        self.high_set_point = 0.1
-        self.action_space = spaces.Box(low=np.array([self.low_set_point]), high=np.array([self.high_set_point]), dtype=np.float16)
+        self.low_set_point = -0.01
+        self.high_set_point = 0.4
+        low_action_limit = [self.low_set_point for i in range(self.action_space_dims)]
+        high_action_limit = [self.high_set_point for i in range(self.action_space_dims)]
+        self.action_space = spaces.Box(low=np.array(low_action_limit), high=np.array(high_action_limit), dtype=np.float16)
 
         self.scipy_model = ScipyModel()
 
-        self.low_freq_limit = - 0.15
+        self.low_freq_limit = - 0.5
         self.high_freq_limit = 0.0
 
     def update_state(self, action, collectPlotData):
-        #features = np.array([[self.disturbance, self.freq, self.rocof]])
-        #next_state = self.regression_model.predict(features)[0] #list
 
-        next_state, freqs, rocofs = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
+        next_state_freq, next_state_rocof, freqs_all_steps, rocofs_all_steps = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
 
-        self.state = next_state
+        self.state = []
+        self.state += next_state_freq
+        self.state += next_state_rocof
         self.timestep += 1
-        self.state.append(self.timestep / 6.0)
+        self.state.append(self.timestep / float(N_ACTIONS_IN_SEQUENCE))
         self.state = tuple(self.state)
-        self.freq, self.rocof, _ = self.state
+        self.freq = next_state_freq
+        self.rocof = next_state_rocof
         ####self.freq, self.rocof = self.state
 
-        return self.state, freqs, rocofs
+        return self.state, freqs_all_steps, rocofs_all_steps
 
     def step(self, action, collectPlotData):
         done = self.timestep == N_ACTIONS_IN_SEQUENCE - 1
@@ -158,37 +189,41 @@ class EnvironmentContinous(gym.Env):
             rocofs = []
         else:
         '''
-        self.disturbance = self.disturbance + action
-        next_state, freqs, rocofs = self.update_state(action, collectPlotData)
+        ##########self.disturbance = self.disturbance + action
+        next_state, freqs_all_steps, rocofs_all_steps = self.update_state(action, collectPlotData)
         reward = self.calculate_reward(action)
 
-        return next_state, reward, done, freqs, rocofs
+        return next_state, reward, done, freqs_all_steps, rocofs_all_steps
 
 
     def calculate_reward(self, action):
         reward = 0
-        if (self.freq < self.low_freq_limit or self.freq > self.high_freq_limit):
-            reward -= 0.5
-        reward = reward - 0.5 * abs(action) #control effort
+        for one_generator_freq in self.freq:
+            if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):
+                reward -= 0.5
+        #reward = reward - 0.5 * abs(sum(action)) #control effort
 
         self.action_sum += action
-        #self.square_root_sum_action_squared += action * action
-        #todo provjeri jos jednom je li ok ovaj predzanji trenutak... ideja je da ni korak kasnije frekvencija ne ode iz granica 
-        #if self.timestep == N_ACTIONS_IN_SEQUENCE:
-            #reward -= 3.0 * math.sqrt(self.square_root_sum_action_squared)
 
         return reward
 
     #TODO DISTURBANCE BI TREBALO IZ DATASETA DA SE CITA, A MOZDA I NESTO VISE, TIPA PODACI O TRENUTNOJ POTROSNJI?
-    def reset(self, initial_disturbance):
-        self.freq = 0
+    def reset(self, initial_disturbance_dict):
+        self.freq = 0 #todo  ovo bi sad trebalo da je lista, ali nije bitno
         self.rocof = 0
-        self.disturbance = initial_disturbance
-        self.action_sum = 0
+        ##########self.disturbance = initial_disturbance
+        self.action_sum = [0 for i in range(self.action_space_dims)]
         self.square_root_sum_action_squared = 0
         self.timestep = 0
-        self.state = self.scipy_model.reset_model(initial_disturbance)
-        self.state.append(self.timestep / 6.0)
+        self.state = self.scipy_model.reset_model(initial_disturbance_dict)
+        self.state.append(self.timestep / float(N_ACTIONS_IN_SEQUENCE))
         self.state = tuple(self.state)
 
         return self.state
+
+
+'''
+Comment1
+u = [p_vsc1, p_vsc2, p_vsc3, load_vsc1, load_vsc2, load_vsc3, p_sm1, …, p_sm7, load_sm1, …, load_sm7, load_bus11, … load_bus39]
+nodeid 0         1      2        3           4          5        6    ..   12     13     ..   19          20      ...    48
+'''

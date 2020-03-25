@@ -49,7 +49,7 @@ class Actor(nn.Module):
         return x
 
 class OUNoise(object):
-    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=0.01, min_sigma=0.01, decay_period=100):
+    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=1.1, min_sigma=1.1, decay_period=100):
         self.mu           = mu
         self.theta        = theta
         self.sigma        = max_sigma
@@ -76,22 +76,22 @@ class OUNoise(object):
         self.sigma = self.max_sigma - (self.max_sigma-self.min_sigma) * min(1.0, t/self.decay_period)
         return np.clip(action + ou_state, self.low, self.high)
 
-#scales action from [-1, 1] to [-0.1, 0.1]
+#scales action from [-1, 1] to [-0.01, 0.4]
 def reverse_action(action, action_space):
     act_k = (action_space.high - action_space.low)/ 2.
     act_b = (action_space.high + action_space.low)/ 2.
     return act_k * action + act_b  
 
-#scales action from [-0.1, 0.1] to [-1, 1]
+#scales action from [-0.01, 0.4] to [-1, 1]
 def normalize_action(action, action_space):
     act_k_inv = 2./(action_space.high - action_space.low)
     act_b = (action_space.high + action_space.low)/ 2.
     return act_k_inv * (action - act_b)
 
-#scales action tensor from [-1, 1] to [-0.1, 0.1]
+#scales action tensor from [-1, 1] to [-0.01, 0.4]
 def reverse_action_tensor(action, action_space):
-    high = np.asscalar(action_space.high)
-    low = np.asscalar(action_space.low)
+    high = np.asscalar(action_space.high[0])
+    low = np.asscalar(action_space.low[0])
     act_k = (high - low)/ 2.
     act_b = (high + low)/ 2.
     act_b_tensor = act_b * torch.ones(action.shape)
@@ -165,7 +165,7 @@ class DDPGAgent:
         self.actor.eval()
         action = self.actor.forward(state)
         self.actor.train()
-        action = action.detach().cpu().numpy()[0,0]
+        action = action.tolist()[0]
         #output from actor network is normalized so:
         action = reverse_action(action, self.environment.action_space)
         return action
@@ -218,9 +218,14 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
 
-            initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
+            #initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
-            state = self.environment.reset(initial_disturbance)
+
+            node_ids = range(1, 40) #1, 2,... 39
+            values = [0.0 for i in range(len(node_ids))]
+            initial_disturbance_dict = dict(zip(node_ids, values))
+            initial_disturbance_dict[16] = 1.7
+            state = self.environment.reset(initial_disturbance_dict)
 
             self.noise.reset()
             done = False
@@ -234,7 +239,7 @@ class DDPGAgent:
                 #print ("train action ", action)
                 action = self.noise.get_action(action, self.timestep)
                 #print ("train action with noise", action)
-                next_state, reward, done, _, _ = self.environment.step(action.item(0), collectPlotData)
+                next_state, reward, done, _, _ = self.environment.step(action.tolist(), collectPlotData)
                 self.timestep += 1
                 
                 self.replay_buffer.push(state, action, reward, next_state, done)
@@ -272,14 +277,13 @@ class DDPGAgent:
         test_sample_id = 1
         self.actor.load_state_dict(torch.load("model_actor"))
 
-        for initial_disturbance in test_sample_list:
-            print('Initial disturbance:', initial_disturbance)
+        for initial_disturbance_dict in test_sample_list:
             freqs = []
             rocofs = []
-            control_efforts = [0 for i in range(25)]
-            action_sums = [0 for i in range(25)]
-            action_sum = 0
-            state  = self.environment.reset(initial_disturbance)
+            control_efforts = [ [0 for i in range(25)], [0 for i in range(25)], [0 for i in range(25)] ]
+            action_sums = [ [0 for i in range(25)], [0 for i in range(25)], [0 for i in range(25)] ]
+            action_sum = [0 for i in range(self.num_actions)] # = [0, 0, 0]
+            state  = self.environment.reset(initial_disturbance_dict)
             done = False
             total_episode_reward = 0
 
@@ -288,7 +292,6 @@ class DDPGAgent:
                 state = np.asarray(state)
                 action = self.get_action(state)
                 #self.actor.eval()
-                action = action.item(0)
 
                 action_sum += action
                 print('action',action)
@@ -296,50 +299,65 @@ class DDPGAgent:
                 self.timestep += 1
                 #if not done:
                 #todo for more resources we should unpack the list of lists of freqs
-                freqs = temp_freqs #we override the freqs by the last results
-                rocofs = temp_rocofs
-                control_efforts += [action for i in range(25)]
-                action_sums += [action_sum for i in range(25)]
-                #print(control_efforts)
-                print('New disturbance:', self.environment.disturbance)
-                print('New freq:', self.environment.freq)
-                print('New rocof:', self.environment.rocof)
+                all_freqs = temp_freqs #we override the freqs by the last results
+                all_rocofs = temp_rocofs
+                control_efforts[0] += [action[0] for i in range(25)]
+                control_efforts[1] += [action[1] for i in range(25)]
+                control_efforts[2] += [action[2] for i in range(25)]
+                action_sums[0] += [action_sum[0] for i in range(25)]
+                action_sums[1] += [action_sum[1] for i in range(25)]
+                action_sums[2] += [action_sum[2] for i in range(25)]
                 print('Reward:', reward)
                 print('**********************')
 
                 total_episode_reward += reward
                 state = next_state
-            plot_results(test_sample_id, freqs, rocofs, control_efforts, action_sums)
+            plot_results(test_sample_id, all_freqs, all_rocofs, control_efforts, action_sums)
             test_sample_id += 1
             total_episode_reward_list.append(total_episode_reward)
         print ("Test set reward ", sum(total_episode_reward_list))
 
 
-def plot_results(test_sample_id, freqs, rocofs, control_efforts, action_sums):
-    time = [i for i in range(len(control_efforts))]
+def plot_results(test_sample_id, all_freqs, all_rocofs, all_control_efforts, all_action_sums):
+    time = [i for i in range(len(all_control_efforts[0]))]
 
     fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, sharex=True)
-    freqs = [f + 50.0 for f in freqs]
-    ax1.plot(time, freqs, label='Freq', color='g')
+
     ax1.set_title('Frequency')
-    #ax1.legend(loc='upper right')
-    #ax1.xlabel('s')  todo kako ovo uraditi za ax1?
-    #ax1.ylabel('Hz') 
+    i = 1
+    for one_source_freqs in all_freqs:
+        one_source_freqs = [f + 50.0 for f in one_source_freqs]
+        ax1.plot(time, one_source_freqs, label='Freq'+str(i))
+        #ax1.plot(time, one_source_freqs, label='Freq', color='g')
+        i += 1
+        
+        #ax1.legend(loc='upper right')
+        #ax1.xlabel('s')  todo kako ovo uraditi za ax1?
+        #ax1.ylabel('Hz') 
 
-    ax2.plot(time, rocofs, label='Rocof', color='r')
     ax2.set_title('Rocof')
-    #ax2.legend(loc='upper right')
-    #ax2.xlabel('s') 
+    i = 1
+    for one_source_rocofs in all_rocofs:
+        ax2.plot(time, one_source_rocofs, label='Rocof'+str(i))
+        i += 1
+        #ax2.legend(loc='upper right')
+        #ax2.xlabel('s') 
 
-    ax3.plot(time, control_efforts, label='Control effort', color='k')
     ax3.set_title('Control effort')
-    #ax3.legend(loc='upper right')
-    #ax3.xlabel('s') 
-    #ax3.ylabel('p.u.') 
+    i = 1
+    for one_vsc_control_efforts in all_control_efforts:
+        ax3.plot(time, one_vsc_control_efforts, label='Control effort'+str(i))
+        i += 1
+        #ax3.legend(loc='upper right')
+        #ax3.xlabel('s') 
+        #ax3.ylabel('p.u.') 
     
-    ax4.plot(time, action_sums, label='Action sums', color='b')
     ax4.set_title('Action sums')
-    #ax4.legend(loc='upper right')
+    i = 1
+    for one_vsc_action_sums in all_action_sums:
+        ax4.plot(time, one_vsc_action_sums, label='Action sums'+str(i))
+        i += 1
+        #ax4.legend(loc='upper right')
 
     fig.savefig(str(test_sample_id) + '_resuts.png')
     plt.show()
