@@ -11,6 +11,9 @@ import math
 import os
 from csv import reader
 
+LOW_FREQ_LIMIT = -0.5
+HIGH_FREQ_LIMIT = 0.5
+
 #referent directions of active powers:
 #negative disturbance - demand increase (frequency decrease)
 #positive action - 'generation' increase
@@ -104,6 +107,8 @@ class ScipyModel():
     #the amount of n_agent_timestep_steps has been done
     def get_next_state(self, agent_timestep, action, collectPlotData):
         current_step = self.n_agent_timestep_steps * (agent_timestep + 1)
+        num_of_violated_freqs = 0
+        is_freq_violated = [0 for i in range(10)]
         for i in range(current_step, current_step + self.n_agent_timestep_steps):
             self.x[:,i+1] = np.dot(self.Ad, self.x[:,i]) + np.dot(self.Bd, self.u[:,i])
             self.f[:,i] = np.dot(self.Cd, self.x[:,i]) + np.dot(self.Dd, self.u[:,i])
@@ -114,6 +119,12 @@ class ScipyModel():
             self.u[0,i+1] = self.u[0,current_step - 1] + action[0] #Comment1, buttom of the file
             self.u[1,i+1] = self.u[1,current_step - 1] + action[1]
             self.u[2,i+1] = self.u[2,current_step - 1] + action[2]
+
+            for j in range(10):
+                if (self.f[j,i] > HIGH_FREQ_LIMIT) or (self.f[j,i] < LOW_FREQ_LIMIT):
+                    is_freq_violated[j] = 1
+
+        num_of_violated_freqs = sum(is_freq_violated)
 
         #size of self.f[:,i].tolist() is 10
         #i is last step index in agents step (last step of the for loop)
@@ -129,7 +140,7 @@ class ScipyModel():
             freqs_all_steps = []
             rocofs_all_steps = []
 
-        return next_state_freq, next_state_rocof, freqs_all_steps, rocofs_all_steps
+        return next_state_freq, next_state_rocof, freqs_all_steps, rocofs_all_steps, num_of_violated_freqs
 
 
 class EnvironmentContinous(gym.Env):
@@ -153,19 +164,19 @@ class EnvironmentContinous(gym.Env):
         self.action_sum = [0 for i in range(self.action_space_dims)] #models setpoint change, that should be zero at the end
 
         self.low_set_point = -0.01
-        self.high_set_point = 0.4
+        self.high_set_point = 0.3
         low_action_limit = [self.low_set_point for i in range(self.action_space_dims)]
         high_action_limit = [self.high_set_point for i in range(self.action_space_dims)]
         self.action_space = spaces.Box(low=np.array(low_action_limit), high=np.array(high_action_limit), dtype=np.float16)
 
         self.scipy_model = ScipyModel()
 
-        self.low_freq_limit = - 0.5
-        self.high_freq_limit = 0.0
+        self.low_freq_limit = LOW_FREQ_LIMIT
+        self.high_freq_limit = HIGH_FREQ_LIMIT
 
     def update_state(self, action, collectPlotData):
 
-        next_state_freq, next_state_rocof, freqs_all_steps, rocofs_all_steps = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
+        next_state_freq, next_state_rocof, freqs_all_steps, rocofs_all_steps, num_of_violated_freqs = self.scipy_model.get_next_state(self.timestep, action, collectPlotData)
 
         self.state = []
         self.state += next_state_freq
@@ -177,7 +188,7 @@ class EnvironmentContinous(gym.Env):
         self.rocof = next_state_rocof
         ####self.freq, self.rocof = self.state
 
-        return self.state, freqs_all_steps, rocofs_all_steps
+        return self.state, freqs_all_steps, rocofs_all_steps, num_of_violated_freqs
 
     def step(self, action, collectPlotData):
         done = self.timestep == N_ACTIONS_IN_SEQUENCE - 1
@@ -190,18 +201,21 @@ class EnvironmentContinous(gym.Env):
         else:
         '''
         ##########self.disturbance = self.disturbance + action
-        next_state, freqs_all_steps, rocofs_all_steps = self.update_state(action, collectPlotData)
-        reward = self.calculate_reward(action)
+        next_state, freqs_all_steps, rocofs_all_steps, num_of_violated_freqs = self.update_state(action, collectPlotData)
+        reward = self.calculate_reward(action, num_of_violated_freqs)
 
         return next_state, reward, done, freqs_all_steps, rocofs_all_steps
 
 
-    def calculate_reward(self, action):
+    def calculate_reward(self, action, num_of_violated_freqs):
         reward = 0
-        for one_generator_freq in self.freq:
-            if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):
-                reward -= 0.5
-        #reward = reward - 0.5 * abs(sum(action)) #control effort
+        reward = -0.05 * num_of_violated_freqs
+        #for one_generator_freq in self.freq:
+            #if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):
+                #reward -= 0.5
+
+
+        reward = reward - 0.2 * abs(sum(action)) #control effort
 
         self.action_sum += action
 

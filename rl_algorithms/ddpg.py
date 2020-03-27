@@ -49,7 +49,7 @@ class Actor(nn.Module):
         return x
 
 class OUNoise(object):
-    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=1.1, min_sigma=1.1, decay_period=100):
+    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=0.1, min_sigma=0.1, decay_period=100):
         self.mu           = mu
         self.theta        = theta
         self.sigma        = max_sigma
@@ -129,7 +129,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
 class DDPGAgent:
-    def __init__(self, environment, hidden_size=100, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
+    def __init__(self, environment, hidden_size=128, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
         self.environment = environment
         self.num_states = environment.state_space_dims
         self.num_actions = environment.action_space.shape[0]
@@ -255,7 +255,7 @@ class DDPGAgent:
                 print ("total_episode_reward: ", total_episode_reward)
             
             if (i_episode % 1000 == 999):
-                #time.sleep(60)
+                time.sleep(60)
                 torch.save(self.actor.state_dict(), "model_actor")
                 torch.save(self.critic.state_dict(), "model_critic")                
         
@@ -321,11 +321,23 @@ class DDPGAgent:
 def plot_results(test_sample_id, all_freqs, all_rocofs, all_control_efforts, all_action_sums):
     time = [i for i in range(len(all_control_efforts[0]))]
 
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, sharex=True)
+    fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, 1, sharex=True)
 
-    ax1.set_title('Frequency')
+    vsc_frequencies = all_freqs[:3]
+    gen_frequencies = all_freqs[3:]
+
+    ax0.set_title('VSC frequencies')
     i = 1
-    for one_source_freqs in all_freqs:
+    for one_source_freqs in vsc_frequencies:
+        one_source_freqs = [f + 50.0 for f in one_source_freqs]
+        ax0.plot(time, one_source_freqs, label='Freq'+str(i))
+        #ax0.plot(time, one_source_freqs, label='Freq', color='g')
+        ax0.legend(loc='upper right')
+        i += 1
+
+
+    ax1.set_title('Generator frequencies')
+    for one_source_freqs in gen_frequencies:
         one_source_freqs = [f + 50.0 for f in one_source_freqs]
         ax1.plot(time, one_source_freqs, label='Freq'+str(i))
         #ax1.plot(time, one_source_freqs, label='Freq', color='g')
