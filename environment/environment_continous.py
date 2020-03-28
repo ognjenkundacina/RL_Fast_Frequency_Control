@@ -11,8 +11,8 @@ import math
 import os
 from csv import reader
 
-LOW_FREQ_LIMIT = -0.5
-HIGH_FREQ_LIMIT = 0.5
+LOW_FREQ_LIMIT = -0.49
+HIGH_FREQ_LIMIT = 0.49
 
 #referent directions of active powers:
 #negative disturbance - demand increase (frequency decrease)
@@ -45,7 +45,7 @@ class ScipyModel():
 
         # Define simulation parameters
 
-        self.nSteps = 175 # Total number of time steps
+        self.nSteps = 100 # Total number of time steps
         self.nDist = 5    # Disturbance time instant
         self.Td = 0.01     # Time discretization
 
@@ -214,8 +214,10 @@ class EnvironmentContinous(gym.Env):
             #if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):
                 #reward -= 0.5
 
-
-        reward = reward - 0.2 * abs(sum(action)) #control effort
+        total_control_effort = 0.0
+        for vsc_setpoint in action:
+            total_control_effort += abs(vsc_setpoint) 
+        reward = reward - 0.5 * total_control_effort
 
         self.action_sum += action
 
