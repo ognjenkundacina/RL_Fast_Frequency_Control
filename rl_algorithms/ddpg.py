@@ -218,13 +218,13 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
 
-            #initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
+            initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
 
             node_ids = range(1, 40) #1, 2,... 39
             values = [0.0 for i in range(len(node_ids))]
             initial_disturbance_dict = dict(zip(node_ids, values))
-            initial_disturbance_dict[16] = 1.7
+            initial_disturbance_dict[16] = initial_disturbance
             state = self.environment.reset(initial_disturbance_dict)
 
             self.noise.reset()

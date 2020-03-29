@@ -164,7 +164,7 @@ class EnvironmentContinous(gym.Env):
         self.action_sum = [0 for i in range(self.action_space_dims)] #models setpoint change, that should be zero at the end
 
         self.low_set_point = -0.01
-        self.high_set_point = 0.3
+        self.high_set_point = 0.4
         low_action_limit = [self.low_set_point for i in range(self.action_space_dims)]
         high_action_limit = [self.high_set_point for i in range(self.action_space_dims)]
         self.action_space = spaces.Box(low=np.array(low_action_limit), high=np.array(high_action_limit), dtype=np.float16)
@@ -217,7 +217,7 @@ class EnvironmentContinous(gym.Env):
         total_control_effort = 0.0
         for vsc_setpoint in action:
             total_control_effort += abs(vsc_setpoint) 
-        reward = reward - 0.5 * total_control_effort
+        reward = reward - 0.2 * total_control_effort
 
         self.action_sum += action
 
