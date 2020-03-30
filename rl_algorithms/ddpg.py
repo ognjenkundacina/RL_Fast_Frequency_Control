@@ -254,10 +254,10 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
             
-            if (i_episode % 1000 == 999):
-                time.sleep(60)
-                torch.save(self.actor.state_dict(), "model_actor")
-                torch.save(self.critic.state_dict(), "model_critic")                
+            if (i_episode % 1000 == 0):
+                #time.sleep(60)
+                torch.save(self.actor.state_dict(), "./trained_nets/model_actor" + str(i_episode))
+                torch.save(self.critic.state_dict(), "./trained_nets/model_critic" + str(i_episode))                
         
         torch.save(self.actor.state_dict(), "model_actor")
         torch.save(self.critic.state_dict(), "model_critic")
