@@ -140,11 +140,12 @@ class DDPGAgent:
 
         self.batch_size = 128
 
-        self.actor = Actor(self.num_states, hidden_size, self.num_actions)
-        self.actor_target = Actor(self.num_states, hidden_size, self.num_actions)
+        self.hidden_size = hidden_size
+        self.actor = Actor(self.num_states, self.hidden_size, self.num_actions)
+        self.actor_target = Actor(self.num_states, self.hidden_size, self.num_actions)
         self.actor.train()
-        self.critic = Critic(self.num_states+self.num_actions, hidden_size, self.num_actions)
-        self.critic_target = Critic(self.num_states+self.num_actions, hidden_size, self.num_actions)
+        self.critic = Critic(self.num_states+self.num_actions, self.hidden_size, self.num_actions)
+        self.critic_target = Critic(self.num_states+self.num_actions, self.hidden_size, self.num_actions)
         self.critic.train()
 
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
@@ -261,6 +262,88 @@ class DDPGAgent:
         
         torch.save(self.actor.state_dict(), "model_actor")
         torch.save(self.critic.state_dict(), "model_critic")
+        
+        x_axis = [1 + j for j in range(len(total_episode_rewards))]
+        plt.plot(x_axis, total_episode_rewards)
+        plt.xlabel('Episode number') 
+        plt.ylabel('Total episode reward') 
+        plt.savefig("total_episode_rewards.png")
+        #plt.show()
+        
+        
+    def train_with_weight_averaging(self, n_episodes):
+        self.actor.load_state_dict(torch.load("./pretrained_weights/model_actor"))
+        self.critic.load_state_dict(torch.load("./pretrained_weights/model_critic"))
+        
+        self.weight_averaging_period = 1
+        self.n_swa = 1
+        self.actor_swa = Actor(self.num_states, self.hidden_size, self.num_actions)
+        self.critic_swa = Critic(self.num_states+self.num_actions, self.hidden_size, self.num_actions)
+        
+        for swa_param, param in zip(self.actor_swa.parameters(), self.actor.parameters()):
+            swa_param.data.copy_(param.data)
+
+        for swa_param, param in zip(self.critic_swa.parameters(), self.critic.parameters()):
+            swa_param.data.copy_(param.data)
+        
+        total_episode_rewards = []
+        collectPlotData = False
+        for i_episode in range(n_episodes):
+            if (i_episode % 100 == 0):
+                print("Episode: ", i_episode)
+
+            initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
+            #print('initial_disturbance', initial_disturbance)
+
+            node_ids = range(1, 40) #1, 2,... 39
+            values = [0.0 for i in range(len(node_ids))]
+            initial_disturbance_dict = dict(zip(node_ids, values))
+            initial_disturbance_dict[16] = initial_disturbance
+            state = self.environment.reset(initial_disturbance_dict)
+
+            self.noise.reset()
+            done = False
+            episode_iterator = 0
+            total_episode_reward = 0 
+            self.timestep = 0
+
+            while not done:
+                state = np.asarray(state)
+                action = self.get_action(state)
+                #print ("train action ", action)
+                action = self.noise.get_action(action, self.timestep)
+                #print ("train action with noise", action)
+                next_state, reward, done, _, _ = self.environment.step(action.tolist(), collectPlotData)
+                self.timestep += 1
+                
+                self.replay_buffer.push(state, action, reward, next_state, done)
+                if len(self.replay_buffer) > self.batch_size:
+                    self.update()
+
+                state = next_state
+                total_episode_reward += reward
+
+            total_episode_rewards.append(total_episode_reward)
+            
+            if (i_episode % 100 == 0):
+                print ("total_episode_reward: ", total_episode_reward)
+                
+            if (i_episode % self.weight_averaging_period == 0):
+                for swa_param, param in zip(self.actor_swa.parameters(), self.actor.parameters()):
+                    swa_param.data.copy_( (swa_param.data*self.n_swa + param.data*1.0) / (1.0 * (self.n_swa + 1)))
+                for swa_param, param in zip(self.critic_swa.parameters(), self.critic.parameters()):
+                    swa_param.data.copy_( (swa_param.data*self.n_swa + param.data*1.0) / (1.0 * (self.n_swa + 1)))
+                self.n_swa += 1
+                torch.save(self.actor_swa.state_dict(), "./trained_nets/actor_swa" + str(i_episode))
+                torch.save(self.critic_swa.state_dict(), "./trained_nets/critic_swa" + str(i_episode))
+            
+            if (i_episode % 1000 == 0):
+                time.sleep(60)
+                torch.save(self.actor.state_dict(), "./trained_nets/model_actor" + str(i_episode))
+                torch.save(self.critic.state_dict(), "./trained_nets/model_critic" + str(i_episode))                
+        
+        torch.save(self.actor_swa.state_dict(), "model_actor")
+        torch.save(self.critic_swa.state_dict(), "model_critic")
         
         x_axis = [1 + j for j in range(len(total_episode_rewards))]
         plt.plot(x_axis, total_episode_rewards)

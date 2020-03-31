@@ -33,7 +33,7 @@ def main():
     n_episodes = 200000
     print('agent training started')
     t1 = time.time()
-    agent.train(n_episodes)
+    agent.train_with_weight_averaging(n_episodes)
     t2 = time.time()
     print ('agent training finished in', t2-t1)
 
