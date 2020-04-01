@@ -155,8 +155,8 @@ class EnvironmentContinous(gym.Env):
         ####self.state = (self.freq, self.rocof)
         ##########self.disturbance = 0
 
-        self.min_disturbance = 0.0
-        self.max_disturbance = 2.0
+        self.min_disturbance = 0.9
+        self.max_disturbance = 1.9
 
         self.state_space_dims = 21 #f i rocof i timestep
         ####self.state_space_dims = 2 #f i rocof i timestep

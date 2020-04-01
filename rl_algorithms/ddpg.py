@@ -15,6 +15,7 @@ class Critic(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super(Critic, self).__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
+        self.linear1a = nn.Linear(hidden_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.linear2_bn = nn.BatchNorm1d(hidden_size)
         self.linear3 = nn.Linear(hidden_size, output_size)
@@ -26,6 +27,7 @@ class Critic(nn.Module):
     def forward(self, state, action):
         x = torch.cat([state, action], 1)
         x = torch.relu(self.linear1(x))
+        x = torch.relu(self.linear1a(x))
         x = torch.relu(self.linear2_bn(self.linear2(x)))
         x = self.linear3(x) #returns q value, should not be limited by tanh
         return x
@@ -34,6 +36,7 @@ class Actor(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, learning_rate = 3e-4):
         super(Actor, self).__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
+        self.linear1a = nn.Linear(hidden_size, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.linear2_bn = nn.BatchNorm1d(hidden_size)
         self.linear3 = nn.Linear(hidden_size, output_size)
@@ -44,6 +47,7 @@ class Actor(nn.Module):
 
     def forward(self, state):
         x = torch.relu(self.linear1(state))
+        x = torch.relu(self.linear1a(state))
         x = torch.relu(self.linear2_bn(self.linear2(x)))        
         x = torch.tanh(self.linear3(x))
         return x
@@ -129,7 +133,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
 class DDPGAgent:
-    def __init__(self, environment, hidden_size=128, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
+    def __init__(self, environment, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
         self.environment = environment
         self.num_states = environment.state_space_dims
         self.num_actions = environment.action_space.shape[0]
@@ -334,8 +338,8 @@ class DDPGAgent:
                 for swa_param, param in zip(self.critic_swa.parameters(), self.critic.parameters()):
                     swa_param.data.copy_( (swa_param.data*self.n_swa + param.data*1.0) / (1.0 * (self.n_swa + 1)))
                 self.n_swa += 1
-                torch.save(self.actor_swa.state_dict(), "./trained_nets/actor_swa" + str(i_episode))
-                torch.save(self.critic_swa.state_dict(), "./trained_nets/critic_swa" + str(i_episode))
+                #torch.save(self.actor_swa.state_dict(), "./trained_nets/actor_swa" + str(i_episode))
+                #torch.save(self.critic_swa.state_dict(), "./trained_nets/critic_swa" + str(i_episode))
             
             if (i_episode % 1000 == 0):
                 time.sleep(60)
