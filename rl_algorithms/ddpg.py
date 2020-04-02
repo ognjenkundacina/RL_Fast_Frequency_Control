@@ -222,6 +222,10 @@ class DDPGAgent:
         for i_episode in range(n_episodes):
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
+                
+            if (i_episode == 70000):
+                self.noise.min_sigma = 0.02
+                self.noise.max_sigma = 0.02
 
             initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
