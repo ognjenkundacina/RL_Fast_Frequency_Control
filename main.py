@@ -38,10 +38,10 @@ def main():
     print ('agent training finished in', t2-t1)
 
 
-    node_ids = range(1, 40) #1, 2,... 39
+    node_ids = range(1, 15) #1, 2,... 14
     values = [0.0 for i in range(len(node_ids))]
     initial_disturbance_dict = dict(zip(node_ids, values))
-    initial_disturbance_dict[16] = 1.7
+    initial_disturbance_dict[14] = 0.6
     test_disturbance_list = [initial_disturbance_dict]
     agent.test(test_disturbance_list)
 

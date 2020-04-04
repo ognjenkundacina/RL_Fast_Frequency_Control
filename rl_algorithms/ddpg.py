@@ -224,16 +224,17 @@ class DDPGAgent:
                 print("Episode: ", i_episode)
                 
             if (i_episode == 70000):
-                self.noise.min_sigma = 0.02
-                self.noise.max_sigma = 0.02
+                self.noise.min_sigma = 0.05
+                self.noise.max_sigma = 0.05
 
             initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
+            #initial_disturbance = 0.6
 
-            node_ids = range(1, 40) #1, 2,... 39
+            node_ids = range(1, 15) #1, 2,... 14
             values = [0.0 for i in range(len(node_ids))]
             initial_disturbance_dict = dict(zip(node_ids, values))
-            initial_disturbance_dict[16] = initial_disturbance
+            initial_disturbance_dict[14] = initial_disturbance
             state = self.environment.reset(initial_disturbance_dict)
 
             self.noise.reset()
@@ -345,7 +346,7 @@ class DDPGAgent:
                 #torch.save(self.actor_swa.state_dict(), "./trained_nets/actor_swa" + str(i_episode))
                 #torch.save(self.critic_swa.state_dict(), "./trained_nets/critic_swa" + str(i_episode))
             
-            if (i_episode % 1000 == 0):
+            if (i_episode % 1000 == 0 and i_episode != 0):
                 time.sleep(60)
                 torch.save(self.actor.state_dict(), "./trained_nets/model_actor" + str(i_episode))
                 torch.save(self.critic.state_dict(), "./trained_nets/model_critic" + str(i_episode))                
@@ -371,9 +372,9 @@ class DDPGAgent:
         for initial_disturbance_dict in test_sample_list:
             freqs = []
             rocofs = []
-            control_efforts = [ [0 for i in range(25)], [0 for i in range(25)], [0 for i in range(25)] ]
-            action_sums = [ [0 for i in range(25)], [0 for i in range(25)], [0 for i in range(25)] ]
-            action_sum = [0 for i in range(self.num_actions)] # = [0, 0, 0]
+            control_efforts = [ [0 for i in range(25)], [0 for i in range(25)] ]
+            action_sums = [ [0 for i in range(25)], [0 for i in range(25)]]
+            action_sum = [0 for i in range(self.num_actions)] # = [0, 0]
             state  = self.environment.reset(initial_disturbance_dict)
             done = False
             total_episode_reward = 0
@@ -394,10 +395,8 @@ class DDPGAgent:
                 all_rocofs = temp_rocofs
                 control_efforts[0] += [action[0] for i in range(25)]
                 control_efforts[1] += [action[1] for i in range(25)]
-                control_efforts[2] += [action[2] for i in range(25)]
                 action_sums[0] += [action_sum[0] for i in range(25)]
                 action_sums[1] += [action_sum[1] for i in range(25)]
-                action_sums[2] += [action_sum[2] for i in range(25)]
                 print('Reward:', reward)
                 print('**********************')
 
@@ -414,8 +413,8 @@ def plot_results(test_sample_id, all_freqs, all_rocofs, all_control_efforts, all
 
     fig, (ax0, ax1, ax2, ax3, ax4) = plt.subplots(5, 1, sharex=True)
 
-    vsc_frequencies = all_freqs[:3]
-    gen_frequencies = all_freqs[3:]
+    vsc_frequencies = all_freqs[:2]
+    gen_frequencies = all_freqs[2:]
 
     ax0.set_title('VSC frequencies')
     i = 1
@@ -426,12 +425,13 @@ def plot_results(test_sample_id, all_freqs, all_rocofs, all_control_efforts, all
         ax0.legend(loc='upper right')
         i += 1
 
-
-    ax1.set_title('Generator frequencies')
-    for one_source_freqs in gen_frequencies:
+    i = 1
+    ax1.set_title('VCS and Generator frequencies')
+    for one_source_freqs in all_freqs:
         one_source_freqs = [f + 50.0 for f in one_source_freqs]
         ax1.plot(time, one_source_freqs, label='Freq'+str(i))
         #ax1.plot(time, one_source_freqs, label='Freq', color='g')
+        ax1.legend(loc='upper right')
         i += 1
         
         #ax1.legend(loc='upper right')

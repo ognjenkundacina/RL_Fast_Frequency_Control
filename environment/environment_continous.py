@@ -37,10 +37,10 @@ def load_matrix_from_csv(file_name):
 class ScipyModel():
     def __init__(self):
         # Define the frequnecy response state-space
-        A = load_matrix_from_csv("A_matrix.csv") #85 x 85
-        B = load_matrix_from_csv("B_matrix.csv") #85 x 49
-        C = load_matrix_from_csv("C_matrix.csv") #10 x 85
-        D = load_matrix_from_csv("D_matrix.csv") #10 x 49
+        A = load_matrix_from_csv("A_matrix.csv") #30x30
+        B = load_matrix_from_csv("B_matrix.csv") #30x18
+        C = load_matrix_from_csv("C_matrix.csv") #4x30
+        D = load_matrix_from_csv("D_matrix.csv") #4x18
         sys = signal.StateSpace(A,B,C,D)
 
         # Define simulation parameters
@@ -61,26 +61,26 @@ class ScipyModel():
         self.Bd = np.array(sysd.B)
         self.Cd = np.array(sysd.C)
         self.Dd = np.array(sysd.D)
-        self.x = np.zeros((85,self.nSteps))
-        self.f = np.zeros((10,self.nSteps))
-        self.rf = np.zeros((10,self.nSteps))
-        self.u = np.zeros((49,self.nSteps)) #disturbance
+        self.x = np.zeros((30,self.nSteps))
+        self.f = np.zeros((4,self.nSteps))
+        self.rf = np.zeros((4,self.nSteps))
+        self.u = np.zeros((18,self.nSteps)) #disturbance
         self.t = np.zeros((1,self.nSteps))
 
     def initialize_control_vector(self, initial_disturbance_dict):
-        for i in range(49):
-            if i<=19:
+        for i in range(18):
+            if i<=7:
                 self.u[:,self.nDist:self.nSteps] = 0
             else:
-                node_id = i - 9 #Comment1, buttom of the file
+                node_id = i - 3 #Comment1, buttom of the file
                 self.u[i ,self.nDist:self.nSteps+1] = initial_disturbance_dict[node_id]
 
 
     def reset_model(self, initial_disturbance_dict):
-        self.x = np.zeros((85,self.nSteps+2))
-        self.f = np.zeros((10,self.nSteps))
-        self.rf = np.zeros((10,self.nSteps))
-        self.u = np.zeros((49,self.nSteps+1))
+        self.x = np.zeros((30,self.nSteps+2))
+        self.f = np.zeros((4,self.nSteps))
+        self.rf = np.zeros((4,self.nSteps))
+        self.u = np.zeros((18,self.nSteps+1))
         self.initialize_control_vector(initial_disturbance_dict)
         self.t = np.zeros((1,self.nSteps))
 
@@ -118,9 +118,8 @@ class ScipyModel():
             
             self.u[0,i+1] = self.u[0,current_step - 1] + action[0] #Comment1, buttom of the file
             self.u[1,i+1] = self.u[1,current_step - 1] + action[1]
-            self.u[2,i+1] = self.u[2,current_step - 1] + action[2]
 
-            for j in range(10):
+            for j in range(4):
                 if (self.f[j,i] > HIGH_FREQ_LIMIT) or (self.f[j,i] < LOW_FREQ_LIMIT):
                     is_freq_violated[j] = 1
 
@@ -155,16 +154,16 @@ class EnvironmentContinous(gym.Env):
         ####self.state = (self.freq, self.rocof)
         ##########self.disturbance = 0
 
-        self.min_disturbance = 0.9
-        self.max_disturbance = 1.9
+        self.min_disturbance = 0.55
+        self.max_disturbance = 0.7
 
-        self.state_space_dims = 21 #f i rocof i timestep
+        self.state_space_dims = 9 #f i rocof i timestep
         ####self.state_space_dims = 2 #f i rocof i timestep
-        self.action_space_dims = 3 #delta P
+        self.action_space_dims = 2 #delta P
         self.action_sum = [0 for i in range(self.action_space_dims)] #models setpoint change, that should be zero at the end
 
         self.low_set_point = -0.01
-        self.high_set_point = 0.4
+        self.high_set_point = 0.25
         low_action_limit = [self.low_set_point for i in range(self.action_space_dims)]
         high_action_limit = [self.high_set_point for i in range(self.action_space_dims)]
         self.action_space = spaces.Box(low=np.array(low_action_limit), high=np.array(high_action_limit), dtype=np.float16)
@@ -209,7 +208,7 @@ class EnvironmentContinous(gym.Env):
 
     def calculate_reward(self, action, num_of_violated_freqs):
         reward = 0
-        reward = -0.05 * num_of_violated_freqs
+        reward = -0.1 * num_of_violated_freqs
         #for one_generator_freq in self.freq:
             #if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):
                 #reward -= 0.5
@@ -217,7 +216,7 @@ class EnvironmentContinous(gym.Env):
         total_control_effort = 0.0
         for vsc_setpoint in action:
             total_control_effort += abs(vsc_setpoint) 
-        reward = reward - 0.2 * total_control_effort
+        reward = reward - 0.6 * total_control_effort
 
         self.action_sum += action
 
@@ -240,6 +239,6 @@ class EnvironmentContinous(gym.Env):
 
 '''
 Comment1
-u = [p_vsc1, p_vsc2, p_vsc3, load_vsc1, load_vsc2, load_vsc3, p_sm1, …, p_sm7, load_sm1, …, load_sm7, load_bus11, … load_bus39]
-nodeid 0         1      2        3           4          5        6    ..   12     13     ..   19          20      ...    48
+u = [p_vsc1, p_vsc2, load_vsc1, load_vsc2, p_sm1, p_sm2, load_sm1, load_sm2, load_bus5,  …  load_bus14]
+nodeid 0        1        2        3           4     5       6         7          8     ..       17
 '''
