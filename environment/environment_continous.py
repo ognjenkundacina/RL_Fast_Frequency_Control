@@ -208,7 +208,7 @@ class EnvironmentContinous(gym.Env):
 
     def calculate_reward(self, action, num_of_violated_freqs):
         reward = 0
-        reward = -0.1 * num_of_violated_freqs
+        reward = -0.05 * num_of_violated_freqs
         #for one_generator_freq in self.freq:
             #if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):
                 #reward -= 0.5
@@ -216,7 +216,12 @@ class EnvironmentContinous(gym.Env):
         total_control_effort = 0.0
         for vsc_setpoint in action:
             total_control_effort += abs(vsc_setpoint) 
-        reward = reward - 1.0 * total_control_effort
+        timestep_penalty = 0.5
+        if self.timestep == 2:
+            timestep_penalty = 0.7
+        elif self.timestep == 3:
+            timestep_penalty = 1.0
+        reward = reward - total_control_effort * timestep_penalty
 
         self.action_sum += action
 
