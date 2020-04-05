@@ -154,8 +154,8 @@ class EnvironmentContinous(gym.Env):
         ####self.state = (self.freq, self.rocof)
         ##########self.disturbance = 0
 
-        self.min_disturbance = 0.55
-        self.max_disturbance = 0.7
+        self.min_disturbance = 0.6
+        self.max_disturbance = 0.8
 
         self.state_space_dims = 9 #f i rocof i timestep
         ####self.state_space_dims = 2 #f i rocof i timestep
@@ -216,7 +216,7 @@ class EnvironmentContinous(gym.Env):
         total_control_effort = 0.0
         for vsc_setpoint in action:
             total_control_effort += abs(vsc_setpoint) 
-        reward = reward - 0.6 * total_control_effort
+        reward = reward - 1.0 * total_control_effort
 
         self.action_sum += action
 

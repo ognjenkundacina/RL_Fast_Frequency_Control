@@ -223,7 +223,7 @@ class DDPGAgent:
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
                 
-            if (i_episode == 70000):
+            if (i_episode == 40000):
                 self.noise.min_sigma = 0.05
                 self.noise.max_sigma = 0.05
 
