@@ -162,8 +162,8 @@ class EnvironmentContinous(gym.Env):
         self.action_space_dims = 2 #delta P
         self.action_sum = [0 for i in range(self.action_space_dims)] #models setpoint change, that should be zero at the end
 
-        self.low_set_point = -0.01
-        self.high_set_point = 0.25
+        self.low_set_point = 0.0
+        self.high_set_point = 0.2
         low_action_limit = [self.low_set_point for i in range(self.action_space_dims)]
         high_action_limit = [self.high_set_point for i in range(self.action_space_dims)]
         self.action_space = spaces.Box(low=np.array(low_action_limit), high=np.array(high_action_limit), dtype=np.float16)
@@ -216,11 +216,13 @@ class EnvironmentContinous(gym.Env):
         total_control_effort = 0.0
         for vsc_setpoint in action:
             total_control_effort += abs(vsc_setpoint) 
-        timestep_penalty = 0.5
-        if self.timestep == 2:
-            timestep_penalty = 0.7
-        elif self.timestep == 3:
-            timestep_penalty = 1.0
+            
+        lambdaa = 1.0 # mogi: 0.1 i 0.5    kogi:1 i 10
+        timestep_penalty = lambdaa * 0.05
+        #if self.timestep == 2:
+            #timestep_penalty = 0.7
+        #elif self.timestep == 3:
+            #timestep_penalty = 1.0
         reward = reward - total_control_effort * timestep_penalty
 
         self.action_sum += action
