@@ -10,6 +10,7 @@ from collections import deque
 import random
 import time
 import matplotlib.pyplot as plt
+import torch.onnx as torch_onnx
 
 class Critic(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
@@ -361,6 +362,7 @@ class DDPGAgent:
         plt.savefig("total_episode_rewards.png")
         #plt.show()
 
+
     def test(self, test_sample_list):
         print('***********TEST***********')
         total_episode_reward_list = [] 
@@ -368,6 +370,14 @@ class DDPGAgent:
         
         test_sample_id = 1
         self.actor.load_state_dict(torch.load("model_actor"))
+
+        #input_shape = (1, self.environment.state_space_dims)
+        dummy_input = Variable(torch.randn(1, 9))
+        output = torch_onnx.export(self.actor, 
+                                dummy_input, 
+                                'model_actor_onnx', 
+                                verbose=False)
+
 
         for initial_disturbance_dict in test_sample_list:
             freqs = []
