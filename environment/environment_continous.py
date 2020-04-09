@@ -45,7 +45,7 @@ class ScipyModel():
 
         # Define simulation parameters
 
-        self.nSteps = 100 # Total number of time steps
+        self.nSteps = 125 # Total number of time steps
         self.nDist = 5    # Disturbance time instant
         self.Td = 0.01     # Time discretization
 
@@ -217,13 +217,15 @@ class EnvironmentContinous(gym.Env):
         for vsc_setpoint in action:
             total_control_effort += abs(vsc_setpoint) 
             
-        lambdaa = 1.0 # mogi: 0.1 i 0.5    kogi:1 i 10
+        lambdaa = 20.0 # mogi: 0.1 i 0.5    kogi:1 i 10
         timestep_penalty = lambdaa * 0.05
         #if self.timestep == 2:
             #timestep_penalty = 0.7
         #elif self.timestep == 3:
             #timestep_penalty = 1.0
         reward = reward - total_control_effort * timestep_penalty
+        
+        reward /= 2.0
 
         self.action_sum += action
 
