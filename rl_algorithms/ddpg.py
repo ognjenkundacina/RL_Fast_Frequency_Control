@@ -17,8 +17,15 @@ class Critic(nn.Module):
         super(Critic, self).__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
         self.linear1a = nn.Linear(hidden_size, hidden_size)
+        #self.linear1a_bn = nn.BatchNorm1d(hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.linear2_bn = nn.BatchNorm1d(hidden_size)
+        #self.linear2_bn = nn.BatchNorm1d(hidden_size)
+        self.linear2_2 = nn.Linear(hidden_size, hidden_size)
+        #self.linear2_2bn = nn.BatchNorm1d(hidden_size)
+        self.linear2_3 = nn.Linear(hidden_size, hidden_size)
+        #self.linear2_3bn = nn.BatchNorm1d(hidden_size)
+        self.linear2_4 = nn.Linear(hidden_size, hidden_size)
+        #self.linear2_4bn = nn.BatchNorm1d(hidden_size)
         self.linear3 = nn.Linear(hidden_size, output_size)
 
         init_w = 3e-3
@@ -28,8 +35,11 @@ class Critic(nn.Module):
     def forward(self, state, action):
         x = torch.cat([state, action], 1)
         x = torch.relu(self.linear1(x))
-        x = torch.relu(self.linear1a(x))
-        x = torch.relu(self.linear2_bn(self.linear2(x)))
+        x = torch.relu(self.linear1a(x))  
+        x = torch.relu(self.linear2(x))        
+        x = torch.relu(self.linear2_2(x))
+        x = torch.relu(self.linear2_3(x))
+        x = torch.relu(self.linear2_4(x))
         x = self.linear3(x) #returns q value, should not be limited by tanh
         return x
 
@@ -38,8 +48,15 @@ class Actor(nn.Module):
         super(Actor, self).__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
         self.linear1a = nn.Linear(hidden_size, hidden_size)
+        #self.linear1a_bn = nn.BatchNorm1d(hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
-        self.linear2_bn = nn.BatchNorm1d(hidden_size)
+        #self.linear2_bn = nn.BatchNorm1d(hidden_size)
+        self.linear2_2 = nn.Linear(hidden_size, hidden_size)
+        #self.linear2_2bn = nn.BatchNorm1d(hidden_size)
+        self.linear2_3 = nn.Linear(hidden_size, hidden_size)
+        #self.linear2_3bn = nn.BatchNorm1d(hidden_size)
+        self.linear2_4 = nn.Linear(hidden_size, hidden_size)
+        #self.linear2_4bn = nn.BatchNorm1d(hidden_size)
         self.linear3 = nn.Linear(hidden_size, output_size)
 
         init_w = 3e-3
@@ -48,13 +65,16 @@ class Actor(nn.Module):
 
     def forward(self, state):
         x = torch.relu(self.linear1(state))
-        x = torch.relu(self.linear1a(x))
-        x = torch.relu(self.linear2_bn(self.linear2(x)))        
+        x = torch.relu(self.linear1a(x)) 
+        x = torch.relu(self.linear2(x))       
+        x = torch.relu(self.linear2_2(x))
+        x = torch.relu(self.linear2_3(x))
+        x = torch.relu(self.linear2_4(x))
         x = torch.tanh(self.linear3(x))
         return x
 
 class OUNoise(object):
-    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=0.1, min_sigma=0.1, decay_period=100):
+    def __init__(self, action_space, mu=0.0, theta=0.1, max_sigma=0.02, min_sigma=0.02, decay_period=100):
         self.mu           = mu
         self.theta        = theta
         self.sigma        = max_sigma
@@ -134,7 +154,7 @@ class ReplayBuffer:
         return len(self.buffer)
 
 class DDPGAgent:
-    def __init__(self, environment, hidden_size=256, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
+    def __init__(self, environment, hidden_size=128, actor_learning_rate=1e-5, critic_learning_rate=1e-4, gamma=0.99, tau=1e-3, max_memory_size=600000):
         self.environment = environment
         self.num_states = environment.state_space_dims
         self.num_actions = environment.action_space.shape[0]
@@ -143,7 +163,7 @@ class DDPGAgent:
 
         self.timestep = 0
 
-        self.batch_size = 128
+        self.batch_size = 256
 
         self.hidden_size = hidden_size
         self.actor = Actor(self.num_states, self.hidden_size, self.num_actions)
@@ -219,14 +239,15 @@ class DDPGAgent:
         #self.actor.load_state_dict(torch.load("model_actor"))
         #self.critic.load_state_dict(torch.load("model_critic"))
         total_episode_rewards = []
+        self.moving_average = 0.0
         collectPlotData = False
         for i_episode in range(n_episodes):
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
                 
-            if (i_episode == 40000):
-                self.noise.min_sigma = 0.05
-                self.noise.max_sigma = 0.05
+            #if (i_episode == 40000):
+                #self.noise.min_sigma = 0.05
+                #self.noise.max_sigma = 0.05
 
             initial_disturbance = random.uniform(self.environment.min_disturbance, self.environment.max_disturbance)
             #print('initial_disturbance', initial_disturbance)
@@ -260,7 +281,10 @@ class DDPGAgent:
                 state = next_state
                 total_episode_reward += reward
 
-            total_episode_rewards.append(total_episode_reward)
+            if (i_episode == 0):
+                self.moving_average = total_episode_reward
+            self.moving_average = 0.99*self.moving_average + 0.01*total_episode_reward
+            total_episode_rewards.append(self.moving_average)
             
             if (i_episode % 100 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
@@ -379,11 +403,12 @@ class DDPGAgent:
                                 verbose=False)
 
 
+        n_agent_timestep_steps = self.environment.scipy_model.n_agent_timestep_steps
         for initial_disturbance_dict in test_sample_list:
             freqs = []
             rocofs = []
-            control_efforts = [ [0 for i in range(25)], [0 for i in range(25)] ]
-            action_sums = [ [0 for i in range(25)], [0 for i in range(25)]]
+            control_efforts = [ [0 for i in range(n_agent_timestep_steps)], [0 for i in range(n_agent_timestep_steps)] ]
+            action_sums = [ [0 for i in range(n_agent_timestep_steps)], [0 for i in range(n_agent_timestep_steps)]]
             action_sum = [0 for i in range(self.num_actions)] # = [0, 0]
             state  = self.environment.reset(initial_disturbance_dict)
             done = False
@@ -403,10 +428,10 @@ class DDPGAgent:
                 #todo for more resources we should unpack the list of lists of freqs
                 all_freqs = temp_freqs #we override the freqs by the last results
                 all_rocofs = temp_rocofs
-                control_efforts[0] += [action[0] for i in range(25)]
-                control_efforts[1] += [action[1] for i in range(25)]
-                action_sums[0] += [action_sum[0] for i in range(25)]
-                action_sums[1] += [action_sum[1] for i in range(25)]
+                control_efforts[0] += [action[0] for i in range(n_agent_timestep_steps)]
+                control_efforts[1] += [action[1] for i in range(n_agent_timestep_steps)]
+                action_sums[0] += [action_sum[0] for i in range(n_agent_timestep_steps)]
+                action_sums[1] += [action_sum[1] for i in range(n_agent_timestep_steps)]
                 print('Reward:', reward)
                 print('**********************')
 

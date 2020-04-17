@@ -45,9 +45,9 @@ class ScipyModel():
 
         # Define simulation parameters
 
-        self.nSteps = 125 # Total number of time steps
-        self.nDist = 5    # Disturbance time instant
-        self.Td = 0.01     # Time discretization
+        self.nSteps = 110 # Total number of time steps   #CAUTION ovo je za step size 100ms i za 10 akcija... ako je step size 250ms, onda ovdje treba da bude 125 za 4 akcije
+        self.nDist = 3    # Disturbance time instant
+        self.Td = 0.01     # Time discretization   -> 1 step je 10ms
 
         #N_ACTIONS_IN_SEQUENCE + 1 is the number of intervals in the episode (start contains no actions)
         self.n_agent_timestep_steps = self.nSteps // (N_ACTIONS_IN_SEQUENCE + 1)
@@ -91,9 +91,8 @@ class ScipyModel():
                 self.rf[:,i] = (self.f[:,i] - self.f[:,i-1])/self.Td
             self.t[:,i] = i*self.Td 
         
-        #test
-        if (i*self.Td != 0.24):
-            print('WARNING in environment_discrete.py: i*self.Td != 0.24')
+        if (i != self.n_agent_timestep_steps - 1):
+            print('WARNING in environment_discrete.py: i*self.Td != 0.09')
 
         #size of self.f[:,i].tolist() is 10
         #i is last step index in agents step (last step of the for loop)
@@ -163,7 +162,7 @@ class EnvironmentContinous(gym.Env):
         self.action_sum = [0 for i in range(self.action_space_dims)] #models setpoint change, that should be zero at the end
 
         self.low_set_point = 0.0
-        self.high_set_point = 0.2
+        self.high_set_point = 0.1
         low_action_limit = [self.low_set_point for i in range(self.action_space_dims)]
         high_action_limit = [self.high_set_point for i in range(self.action_space_dims)]
         self.action_space = spaces.Box(low=np.array(low_action_limit), high=np.array(high_action_limit), dtype=np.float16)

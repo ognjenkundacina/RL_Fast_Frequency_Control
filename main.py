@@ -30,7 +30,7 @@ def main():
     environment_continous = EnvironmentContinous()
     agent = DDPGAgent(environment_continous)
 
-    n_episodes = 100000
+    n_episodes = 80000
     print('agent training started')
     t1 = time.time()
     agent.train(n_episodes)
@@ -41,7 +41,7 @@ def main():
     node_ids = range(1, 15) #1, 2,... 14
     values = [0.0 for i in range(len(node_ids))]
     initial_disturbance_dict = dict(zip(node_ids, values))
-    initial_disturbance_dict[14] = 0.7
+    initial_disturbance_dict[14] = 0.79
     test_disturbance_list = [initial_disturbance_dict]
     agent.test(test_disturbance_list)
 
