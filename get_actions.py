@@ -63,9 +63,16 @@ def reverse_action(action, action_space_high, action_space_low):
     return act_k * action + act_b  
 
 state = []
-file_in = open('state.txt', 'r')
-for y in file_in.read().split('\n'):
-    state.append(float(y))
+#file_in = open('state.txt', 'r')
+#for y in file_in.read().split('\n'):
+    #state.append(float(y))
+    
+with open('state.txt') as f:
+    for line in f:
+        elems = line.strip()
+        elems = elems.split(",")
+        for elem in elems:
+            state.append(float(elem))
 
 print(state)
 actor = Actor(9, 128, 2)
