@@ -207,6 +207,11 @@ class EnvironmentContinous(gym.Env):
 
     def calculate_reward(self, action, num_of_violated_freqs):
         reward = 0
+
+        sg_rocofs = self.rocof[2:]
+        for sg_rocof in sg_rocofs:
+            if abs(sg_rocof) >= 1.0:
+                num_of_violated_freqs += 1
         reward = -0.05 * num_of_violated_freqs
         #for one_generator_freq in self.freq:
             #if (one_generator_freq < self.low_freq_limit or one_generator_freq > self.high_freq_limit):

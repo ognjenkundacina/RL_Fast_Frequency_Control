@@ -241,6 +241,7 @@ class DDPGAgent:
         total_episode_rewards = []
         self.moving_average = 0.0
         collectPlotData = False
+        file_out = open('total_episode_rewards.txt', 'w')
         for i_episode in range(n_episodes):
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
@@ -285,6 +286,7 @@ class DDPGAgent:
                 self.moving_average = total_episode_reward
             self.moving_average = 0.99*self.moving_average + 0.01*total_episode_reward
             total_episode_rewards.append(self.moving_average)
+            file_out.write(str(self.moving_average) + '\n')
             
             if (i_episode % 100 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
