@@ -30,7 +30,7 @@ def main():
     environment_continous = EnvironmentContinous()
     agent = DDPGAgent(environment_continous)
 
-    n_episodes = 80000
+    n_episodes = 20000
     print('agent training started')
     t1 = time.time()
     agent.train(n_episodes)

@@ -67,6 +67,19 @@ class ScipyModel():
         self.u = np.zeros((18,self.nSteps)) #disturbance
         self.t = np.zeros((1,self.nSteps))
 
+    def reset_system_matrices(self):
+        A = load_matrix_from_csv("A_matrix_new.csv") #30x30
+        B = load_matrix_from_csv("B_matrix_new.csv") #30x18
+        C = load_matrix_from_csv("C_matrix_new.csv") #4x30
+        D = load_matrix_from_csv("D_matrix_new.csv") #4x18
+        sys = signal.StateSpace(A,B,C,D)
+        # Discrete state space
+        sysd = sys.to_discrete(self.Td)
+        self.Ad = np.array(sysd.A)
+        self.Bd = np.array(sysd.B)
+        self.Cd = np.array(sysd.C)
+        self.Dd = np.array(sysd.D)
+
     def initialize_control_vector(self, initial_disturbance_dict):
         for i in range(18):
             if i<=7:
