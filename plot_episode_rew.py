@@ -3,7 +3,9 @@ import numpy as np
 from collections import deque
 
 total_episode_rewards = []
-with open('total_episode_rewards.txt') as f:
+
+with open('total_episode_rewardsMovingAvg0_01.txt') as f:
+#with open('total_episode_rewards.txt') as f:
     for line in f:
         elems = line.strip()
         total_episode_rewards.append(float(elems))

@@ -240,8 +240,10 @@ class DDPGAgent:
         #self.critic.load_state_dict(torch.load("model_critic"))
         total_episode_rewards = []
         self.moving_average = 0.0
+        self.moving_average_2 = 0.0
         collectPlotData = False
         file_out = open('total_episode_rewards.txt', 'w')
+        file_out2 = open('total_episode_rewardsMovingAvg0_01.txt', 'w')
         for i_episode in range(n_episodes):
             if (i_episode % 100 == 0):
                 print("Episode: ", i_episode)
@@ -283,9 +285,12 @@ class DDPGAgent:
 
             if (i_episode == 0):
                 self.moving_average = total_episode_reward
-            self.moving_average = 0.99*self.moving_average + 0.01*total_episode_reward
+                self.moving_average2 = total_episode_reward
+            self.moving_average = 0.9*self.moving_average + 0.1*total_episode_reward
+            self.moving_average2 = 0.99*self.moving_average2 + 0.01*total_episode_reward
             total_episode_rewards.append(self.moving_average)
             file_out.write(str(self.moving_average) + '\n')
+            file_out2.write(str(self.moving_average2) + '\n')
             
             if (i_episode % 100 == 0):
                 print ("total_episode_reward: ", total_episode_reward)
@@ -500,3 +505,38 @@ def plot_results(test_sample_id, all_freqs, all_rocofs, all_control_efforts, all
 
     fig.savefig(str(test_sample_id) + '_resuts.png')
     plt.show()
+    
+    vsc1_freq = open('./results/vsc1_freq.txt', 'w')
+    for f in all_freqs[0]:
+        vsc1_freq.write(str(f) + '\n')
+        
+    vsc2_freq = open('./results/vsc2_freq.txt', 'w')
+    for f in all_freqs[1]:
+        vsc2_freq.write(str(f) + '\n')
+        
+    sg1_freq = open('./results/sg1_freq.txt', 'w')
+    for f in all_freqs[2]:
+        sg1_freq.write(str(f) + '\n')
+        
+    sg2_freq = open('./results/sg2_freq.txt', 'w')
+    for f in all_freqs[3]:
+        sg2_freq.write(str(f) + '\n')
+        
+        
+    vsc1_cont_effort = open('./results/vsc1_cont_effort.txt', 'w')
+    for f in all_control_efforts[0]:
+        vsc1_cont_effort.write(str(f) + '\n')
+        
+    vsc2_cont_effort = open('./results/vsc2_cont_effort.txt', 'w')
+    for f in all_control_efforts[1]:
+        vsc2_cont_effort.write(str(f) + '\n')
+        
+        
+    vsc1_action_sums = open('./results/vsc1_action_sums.txt', 'w')
+    for f in all_action_sums[0]:
+        vsc1_action_sums.write(str(f) + '\n')
+        
+    vsc2_action_sums = open('./results/vsc2_action_sums.txt', 'w')
+    for f in all_action_sums[1]:
+        vsc2_action_sums.write(str(f) + '\n')
+    
