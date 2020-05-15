@@ -45,7 +45,7 @@ class ScipyModel():
 
         # Define simulation parameters
 
-        self.nSteps = 110 # Total number of time steps   #CAUTION ovo je za step size 100ms i za 10 akcija... ako je step size 250ms, onda ovdje treba da bude 125 za 4 akcije
+        self.nSteps = 500 # Total number of time steps   #CAUTION ovo je za step size 100ms i za 10 akcija... ako je step size 250ms, onda ovdje treba da bude 125 za 4 akcije
         self.nDist = 3    # Disturbance time instant
         self.Td = 0.01     # Time discretization   -> 1 step je 10ms
 
@@ -162,7 +162,7 @@ class EnvironmentContinous(gym.Env):
         self.freq = 0
         self.rocof = 0
         self.timestep = 0
-        self.state = (self.freq, self.rocof, self.timestep / float(N_ACTIONS_IN_SEQUENCE) )
+        self.state = (self.freq, self.rocof, self.timestep / float(10) )
         ####self.state = (self.freq, self.rocof)
         ##########self.disturbance = 0
 
@@ -193,7 +193,7 @@ class EnvironmentContinous(gym.Env):
         self.state += next_state_freq
         self.state += next_state_rocof
         self.timestep += 1
-        self.state.append(self.timestep / float(N_ACTIONS_IN_SEQUENCE))
+        self.state.append(self.timestep / float(10))
         self.state = tuple(self.state)
         self.freq = next_state_freq
         self.rocof = next_state_rocof
@@ -257,7 +257,7 @@ class EnvironmentContinous(gym.Env):
         self.square_root_sum_action_squared = 0
         self.timestep = 0
         self.state = self.scipy_model.reset_model(initial_disturbance_dict)
-        self.state.append(self.timestep / float(N_ACTIONS_IN_SEQUENCE))
+        self.state.append(self.timestep / float(10))
         self.state = tuple(self.state)
 
         return self.state

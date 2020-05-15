@@ -423,7 +423,10 @@ class DDPGAgent:
             self.timestep = 0
             while not done:
                 state = np.asarray(state)
-                action = self.get_action(state)
+                if (self.timestep >= 10):
+                    action = [0.0 for i in range(2)]
+                else:
+                    action = self.get_action(state)
                 #self.actor.eval()
 
                 action_sum += action
